@@ -10,9 +10,19 @@ no iTunes required.
   `iPod_Control` folder), mounted under `/Volumes`.
 
 ## Install
+On macOS, Homebrew's Python is "externally managed" (PEP 668) and `pip`
+may not be on your PATH (use `pip3` or `python3 -m pip`). The cleanest install
+is a virtualenv:
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
+`spotishuffle` is then on your PATH whenever the venv is active; re-run
+`source .venv/bin/activate` in any new terminal.
+
+To install into Homebrew Python directly instead, use `pip3 install --user -e .`
+(add `--break-system-packages` if it reports `externally-managed-environment`).
 
 ## Use
 ```bash
