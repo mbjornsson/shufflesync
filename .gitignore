@@ -3,3 +3,4 @@ __pycache__/
 .spotishuffle/
 .venv/
 venv/
+*.egg-info/
