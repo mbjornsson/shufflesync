@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spotishuffle"
+version = "0.1.0"
+description = "Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle"
+requires-python = ">=3.9"
+dependencies = ["spotdl>=4"]
+
+[project.scripts]
+spotishuffle = "spotishuffle.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
