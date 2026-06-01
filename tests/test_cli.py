@@ -68,6 +68,24 @@ def test_main_rejects_malformed_playlist_url(monkeypatch):
     assert called == []  # bailed out before downloading
 
 
+def test_main_handles_download_failure_without_traceback(monkeypatch, capsys):
+    """A failed spotdl run should give a clean message and exit 1, not a
+    CalledProcessError traceback."""
+    import subprocess as sp
+
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+
+    def boom(*a, **k):
+        raise sp.CalledProcessError(1, ["spotdl"])
+    monkeypatch.setattr(cli.downloader, "download_playlist", boom)
+
+    rc = cli.main(["https://open.spotify.com/playlist/abc"])
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "Traceback" not in err
+    assert err.strip()  # some message was printed
+
+
 def test_main_missing_deps_errors(monkeypatch):
     monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: ["spotdl"])
     rc = cli.main(["https://open.spotify.com/playlist/abc"])

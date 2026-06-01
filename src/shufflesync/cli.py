@@ -1,6 +1,7 @@
 """shufflesync CLI: download a Spotify playlist and mirror it to a shuffle."""
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -62,9 +63,19 @@ def main(argv: Optional[List[str]] = None) -> int:
     dest = CACHE_DIR / playlist_id
 
     print(f"Downloading playlist into {dest} ...")
-    files = downloader.download_playlist(
-        args.playlist_url, dest, count=args.count, randomize=args.randomize
-    )
+    try:
+        files = downloader.download_playlist(
+            args.playlist_url, dest, count=args.count, randomize=args.randomize
+        )
+    except FileNotFoundError as e:
+        print(f"Could not run spotdl: {e}", file=sys.stderr)
+        return 1
+    except subprocess.CalledProcessError:
+        print(
+            "Download failed. Check the playlist URL and your internet connection.",
+            file=sys.stderr,
+        )
+        return 1
     if not files:
         print("No tracks were downloaded.", file=sys.stderr)
         return 1
