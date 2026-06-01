@@ -26,3 +26,25 @@ def encode_path(device_path: str) -> bytes:
     if len(encoded) > PATH_FIELD_LEN:
         raise ValueError(f"path too long for iTunesSD field: {device_path!r}")
     return encoded + b"\x00" * (PATH_FIELD_LEN - len(encoded))
+
+
+ENTRY_LEN = 558
+_FILETYPE = {"mp3": 0x01, "aac": 0x02, "wav": 0x04}
+
+
+def build_entry(device_path: str, filetype: str) -> bytes:
+    """Build one 558-byte iTunesSD track record.
+
+    filetype: 'mp3' | 'aac' | 'wav'. Audio-analysis bytes are zeroed
+    (the shuffle does not require them; see plan reference table).
+    """
+    if filetype not in _FILETYPE:
+        raise ValueError(f"unsupported filetype: {filetype!r}")
+    ftype = _FILETYPE[filetype]
+    entry = bytearray(ENTRY_LEN)
+    entry[0:3] = (ENTRY_LEN).to_bytes(3, "big")
+    entry[29] = ftype
+    entry[31] = ftype
+    entry[32:32 + PATH_FIELD_LEN] = encode_path(device_path)
+    entry[555] = 0x01
+    return bytes(entry)

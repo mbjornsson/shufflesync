@@ -31,3 +31,22 @@ def test_encode_path_rejects_overlong():
     import pytest
     with pytest.raises(ValueError):
         itunessd.encode_path("/" + "a" * 261)
+
+def test_build_entry_structural_bytes_match_golden():
+    entry0 = _golden_entry(0)
+    ours = itunessd.build_entry("/iPod_Control/Music/F00/YZUB.m4a", filetype="aac")
+    assert len(ours) == 558
+    assert ours[0:3] == entry0[0:3]
+    assert ours[29] == entry0[29]
+    assert ours[31] == entry0[31]
+    assert ours[32:554] == entry0[32:554]
+    assert ours[554:558] == entry0[554:558]
+
+def test_build_entry_filetype_mp3():
+    ours = itunessd.build_entry("/iPod_Control/Music/F00/T0001.mp3", filetype="mp3")
+    assert ours[29] == 0x01
+    assert ours[31] == 0x01
+
+def test_build_entry_analysis_bytes_zeroed():
+    ours = itunessd.build_entry("/x.mp3", filetype="mp3")
+    assert ours[3:29] == b"\x00" * 26
