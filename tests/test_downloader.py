@@ -67,6 +67,23 @@ def test_download_playlist_with_count_saves_selects_then_downloads(monkeypatch, 
     assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
 
 
+def test_download_playlist_clears_stale_files_from_previous_run(monkeypatch, tmp_path):
+    """A previous, larger run's MP3s must not leak into this run's result, or a
+    later `--count N` would sync more than N tracks."""
+    dest = tmp_path / "cache"
+    dest.mkdir()
+    (dest / "99 - Old Track.mp3").write_bytes(b"old")
+
+    def fake_run(cmd, cwd, check):
+        (dest / "01 - New Track.mp3").write_bytes(b"new")
+        class R: returncode = 0
+        return R()
+
+    monkeypatch.setattr(downloader.subprocess, "run", fake_run)
+    files = downloader.download_playlist("https://open.spotify.com/playlist/abc", dest)
+    assert [f.name for f in files] == ["01 - New Track.mp3"]
+
+
 def test_download_passes_url_after_end_of_options_separator(monkeypatch, tmp_path):
     """The playlist URL goes after `--` so a leading-dash string can't be
     interpreted by spotdl as an option (argument injection)."""

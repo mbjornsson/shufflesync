@@ -52,8 +52,13 @@ def download_playlist(
     With `count` set, only that many tracks are downloaded: the playlist
     metadata is fetched first, `count` tracks are selected (first N, or a random
     sample when `randomize` is true), and only those are downloaded.
+
+    `dest` is emptied first so the returned files are exactly this run's
+    download — otherwise MP3s from a previous (e.g. larger) run would leak in.
     """
-    dest.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
 
     if count is None:
         query = playlist_url
