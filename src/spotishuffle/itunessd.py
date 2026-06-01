@@ -48,3 +48,13 @@ def build_entry(device_path: str, filetype: str) -> bytes:
     entry[32:32 + PATH_FIELD_LEN] = encode_path(device_path)
     entry[555] = 0x01
     return bytes(entry)
+
+
+def build_itunessd(tracks: Iterable[Tuple[str, str]]) -> bytes:
+    """Serialize the full iTunesSD. `tracks` is an ordered iterable of
+    (device_path, filetype) pairs."""
+    tracks = list(tracks)
+    out = bytearray(build_header(len(tracks)))
+    for device_path, filetype in tracks:
+        out += build_entry(device_path, filetype)
+    return bytes(out)

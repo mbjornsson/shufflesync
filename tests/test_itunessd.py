@@ -50,3 +50,20 @@ def test_build_entry_filetype_mp3():
 def test_build_entry_analysis_bytes_zeroed():
     ours = itunessd.build_entry("/x.mp3", filetype="mp3")
     assert ours[3:29] == b"\x00" * 26
+
+def test_build_itunessd_size_and_count():
+    tracks = [("/iPod_Control/Music/F00/T%04d.mp3" % i, "mp3") for i in range(5)]
+    data = itunessd.build_itunessd(tracks)
+    assert len(data) == 18 + 5 * 558
+    assert data[:3] == b"\x00\x00\x05"
+
+def test_build_itunessd_empty():
+    data = itunessd.build_itunessd([])
+    assert data == itunessd.build_header(0)
+    assert len(data) == 18
+
+def test_build_itunessd_concatenates_entries_in_order():
+    tracks = [("/a.mp3", "mp3"), ("/b.aac", "aac")]
+    data = itunessd.build_itunessd(tracks)
+    assert data[18:18 + 558] == itunessd.build_entry("/a.mp3", "mp3")
+    assert data[18 + 558:18 + 2 * 558] == itunessd.build_entry("/b.aac", "aac")
