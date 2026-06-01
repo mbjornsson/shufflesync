@@ -44,3 +44,32 @@ def test_select_shuffle_many_uses_chooser(tmp_path):
     b = _make_ipod(tmp_path, "B")
     dev = device.select_shuffle(volumes_dir=tmp_path, chooser=lambda opts: opts[1])
     assert dev.root == b
+
+
+def test_mount_external_disks_mounts_every_identifier(monkeypatch):
+    """Parse `diskutil list -plist` output and issue a mount for each whole disk
+    and partition identifier."""
+    import plistlib
+
+    sample = {
+        "AllDisksAndPartitions": [
+            {"DeviceIdentifier": "disk4",
+             "Partitions": [{"DeviceIdentifier": "disk4s1"}]},
+            {"DeviceIdentifier": "disk5", "Partitions": []},
+        ]
+    }
+    mounted = []
+
+    def fake_run(cmd, capture_output, check=False):
+        if "list" in cmd:
+            class R: stdout = plistlib.dumps(sample)
+            return R()
+        if "mount" in cmd:
+            mounted.append(cmd[-1])
+            class R: pass
+            return R()
+        raise AssertionError(f"unexpected command: {cmd}")
+
+    monkeypatch.setattr(device.subprocess, "run", fake_run)
+    device.mount_external_disks()
+    assert mounted == ["disk4", "disk4s1", "disk5"]
