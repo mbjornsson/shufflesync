@@ -8,6 +8,12 @@ no iTunes required.
 - `spotdl` (`pip install spotdl`) and `ffmpeg` (`brew install ffmpeg`)
 - A 2nd-gen iPod shuffle already initialized by iTunes once (has an
   `iPod_Control` folder), mounted under `/Volumes`.
+- **Disk use enabled.** If Finder/Music manages the iPod, its disk stays
+  unmounted (it only appears for a moment during a Finder sync). Select the
+  iPod in Finder, turn on **"Enable disk use"** (or **"Manually manage
+  music"**), and click **Apply** so the volume stays mounted under `/Volumes`.
+  This is a one-time, on-device setting. spotishuffle will try to mount an
+  attached-but-unmounted iPod automatically, but it cannot toggle this setting.
 
 ## Install
 On macOS, Homebrew's Python is "externally managed" (PEP 668) and `pip`

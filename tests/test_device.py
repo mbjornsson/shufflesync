@@ -18,7 +18,17 @@ def test_find_shuffles_detects_ipod(tmp_path):
 
 def test_select_shuffle_zero_raises(tmp_path):
     with pytest.raises(device.NoDeviceError):
-        device.select_shuffle(volumes_dir=tmp_path)
+        device.select_shuffle(volumes_dir=tmp_path, mounter=lambda: None)
+
+
+def test_select_shuffle_mounts_then_finds(tmp_path):
+    root = tmp_path / "SHUFFLE"
+
+    def fake_mount():
+        _make_ipod(tmp_path, "SHUFFLE")  # appears only after mounting
+
+    dev = device.select_shuffle(volumes_dir=tmp_path, mounter=fake_mount)
+    assert dev.root == root
 
 
 def test_select_shuffle_one_returns_device(tmp_path):
