@@ -60,10 +60,30 @@ def test_download_playlist_with_count_saves_selects_then_downloads(monkeypatch, 
     save_cmd, download_cmd = cmds
     assert save_cmd[:2] == ["spotdl", "save"]
     assert download_cmd[:2] == ["spotdl", "download"]
-    # download runs against the trimmed save file holding exactly 2 tracks
-    trimmed = Path(download_cmd[2])
+    # download runs against the trimmed save file holding exactly 2 tracks,
+    # passed after the `--` end-of-options separator
+    trimmed = Path(download_cmd[download_cmd.index("--") + 1])
     assert json.loads(trimmed.read_text()) == _tracks(5)[:2]
     assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
+
+
+def test_download_passes_url_after_end_of_options_separator(monkeypatch, tmp_path):
+    """The playlist URL goes after `--` so a leading-dash string can't be
+    interpreted by spotdl as an option (argument injection)."""
+    calls = {}
+
+    def fake_run(cmd, cwd, check):
+        calls["cmd"] = cmd
+        (tmp_path / "01 - Song A.mp3").write_bytes(b"a")
+        class R: returncode = 0
+        return R()
+
+    monkeypatch.setattr(downloader.subprocess, "run", fake_run)
+    url = "https://open.spotify.com/playlist/abc"
+    downloader.download_playlist(url, tmp_path)
+    cmd = calls["cmd"]
+    assert "--" in cmd
+    assert cmd[cmd.index("--") + 1] == url
 
 
 def test_output_template_survives_spotdl_path_sanitization(tmp_path):

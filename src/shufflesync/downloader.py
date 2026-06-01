@@ -64,7 +64,8 @@ def download_playlist(
         trimmed.write_text(json.dumps(selected))
         query = str(trimmed)
 
-    cmd = ["spotdl", "download", query, *_output_args(dest)]
+    # `--` ends option parsing so a leading-dash query can't be read as a flag.
+    cmd = ["spotdl", "download", *_output_args(dest), "--", query]
     subprocess.run(cmd, cwd=dest, check=True)
     return sorted(dest.glob("*.mp3"))
 
@@ -72,6 +73,6 @@ def download_playlist(
 def fetch_track_list(playlist_url: str, dest: Path) -> List[dict]:
     """Run `spotdl save` to fetch playlist metadata without downloading audio."""
     save_file = dest / "playlist.spotdl"
-    cmd = ["spotdl", "save", playlist_url, "--save-file", str(save_file)]
+    cmd = ["spotdl", "save", "--save-file", str(save_file), "--", playlist_url]
     subprocess.run(cmd, cwd=dest, check=True)
     return json.loads(save_file.read_text())

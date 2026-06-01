@@ -55,6 +55,19 @@ def test_main_rejects_non_positive_count(monkeypatch):
     assert rc == 1
 
 
+def test_main_rejects_malformed_playlist_url(monkeypatch):
+    """A URL whose trailing segment isn't a plain id must be rejected before it
+    is used as a cache path component (path traversal defense)."""
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+    called = []
+    monkeypatch.setattr(
+        cli.downloader, "download_playlist", lambda *a, **k: called.append(1) or []
+    )
+    rc = cli.main(["https://open.spotify.com/playlist/.."])
+    assert rc == 1
+    assert called == []  # bailed out before downloading
+
+
 def test_main_missing_deps_errors(monkeypatch):
     monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: ["spotdl"])
     rc = cli.main(["https://open.spotify.com/playlist/abc"])

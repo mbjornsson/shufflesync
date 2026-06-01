@@ -1,5 +1,6 @@
 """shufflesync CLI: download a Spotify playlist and mirror it to a shuffle."""
 import argparse
+import re
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -50,6 +51,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     playlist_id = args.playlist_url.rstrip("/").split("/")[-1].split("?")[0]
+    # Used as a cache path component, so reject anything that isn't a plain id.
+    if not re.fullmatch(r"[A-Za-z0-9]+", playlist_id):
+        print(
+            'That does not look like a Spotify playlist URL. Expected something '
+            'like "https://open.spotify.com/playlist/<id>".',
+            file=sys.stderr,
+        )
+        return 1
     dest = CACHE_DIR / playlist_id
 
     print(f"Downloading playlist into {dest} ...")
