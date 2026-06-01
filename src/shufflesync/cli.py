@@ -13,8 +13,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="shufflesync",
         description="Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle.",
+        epilog=(
+            'Quote the URL — it usually contains "?si=..." and the shell will '
+            "otherwise mangle it:\n"
+            '  shufflesync "https://open.spotify.com/playlist/<id>?si=..."'
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("playlist_url", help="Spotify playlist URL")
+    parser.add_argument(
+        "playlist_url",
+        help='Spotify playlist URL (quote it, e.g. "https://open.spotify.com/playlist/<id>")',
+    )
     args = parser.parse_args(argv)
 
     missing = downloader.check_dependencies()
