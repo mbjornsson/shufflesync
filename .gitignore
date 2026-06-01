@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
-.spotishuffle/
+.shufflesync/
 .venv/
 venv/
 *.egg-info/

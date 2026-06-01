@@ -1,5 +1,5 @@
 from pathlib import Path
-from spotishuffle import cli
+from shufflesync import cli
 
 
 def test_main_happy_path(monkeypatch, tmp_path, capsys):

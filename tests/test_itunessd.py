@@ -1,5 +1,5 @@
 from pathlib import Path
-from spotishuffle import itunessd
+from shufflesync import itunessd
 
 GOLDEN = Path(__file__).parent / "fixtures/golden_device/iTunes/iTunesSD"
 

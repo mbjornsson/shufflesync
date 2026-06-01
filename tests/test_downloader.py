@@ -1,5 +1,5 @@
 import pytest
-from spotishuffle import downloader
+from shufflesync import downloader
 
 
 def test_check_dependencies_reports_missing(monkeypatch):

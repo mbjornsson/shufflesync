@@ -1,4 +1,4 @@
-"""spotishuffle CLI: download a Spotify playlist and mirror it to a shuffle."""
+"""shufflesync CLI: download a Spotify playlist and mirror it to a shuffle."""
 import argparse
 import sys
 from pathlib import Path
@@ -6,12 +6,12 @@ from typing import List, Optional
 
 from . import device, downloader, sync
 
-CACHE_DIR = Path.home() / ".spotishuffle" / "cache"
+CACHE_DIR = Path.home() / ".shufflesync" / "cache"
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="spotishuffle",
+        prog="shufflesync",
         description="Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle.",
     )
     parser.add_argument("playlist_url", help="Spotify playlist URL")

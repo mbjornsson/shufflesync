@@ -1,4 +1,4 @@
-# spotishuffle
+# shufflesync
 
 Download a Spotify playlist and mirror it onto a 2nd-generation iPod shuffle —
 no iTunes required.
@@ -13,7 +13,7 @@ no iTunes required.
   unmounted (it only appears for a moment during a Finder sync). Select the
   iPod in Finder, turn on **"Enable disk use"** (or **"Manually manage
   music"**), and click **Apply** so the volume stays mounted under `/Volumes`.
-  This is a one-time, on-device setting. spotishuffle will try to mount an
+  This is a one-time, on-device setting. shufflesync will try to mount an
   attached-but-unmounted iPod automatically, but it cannot toggle this setting.
 
 ## Install
@@ -22,18 +22,18 @@ From the project directory:
 uv sync
 ```
 That's it. `uv` creates a `.venv`, installs Python (if needed), and installs
-spotishuffle plus its dependencies from the pinned `uv.lock` — no manual
+shufflesync plus its dependencies from the pinned `uv.lock` — no manual
 virtualenv or `pip` to deal with.
 
 ## Use
 Run the command with `uv run` (no need to activate anything):
 ```bash
-uv run spotishuffle "https://open.spotify.com/playlist/<id>"
+uv run shufflesync "https://open.spotify.com/playlist/<id>"
 ```
-Prefer a bare `spotishuffle`? Activate the venv once per terminal with
+Prefer a bare `shufflesync`? Activate the venv once per terminal with
 `source .venv/bin/activate`, then:
 ```bash
-spotishuffle "https://open.spotify.com/playlist/<id>"
+shufflesync "https://open.spotify.com/playlist/<id>"
 ```
 It downloads the playlist, finds your mounted shuffle, **replaces** its music
 with the playlist (mirror sync), and writes the device database. Eject the

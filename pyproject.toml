@@ -3,14 +3,14 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spotishuffle"
+name = "shufflesync"
 version = "0.1.0"
 description = "Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle"
 requires-python = ">=3.9"
 dependencies = ["spotdl>=4"]
 
 [project.scripts]
-spotishuffle = "spotishuffle.cli:main"
+shufflesync = "shufflesync.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]

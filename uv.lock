@@ -1593,6 +1593,28 @@ wheels = [
 ]
 
 [[package]]
+name = "shufflesync"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "spotdl", version = "4.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "spotdl", version = "4.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pytest", version = "9.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
+    { name = "spotdl", specifier = ">=4" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1751,28 +1773,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/7e/93/a2889d06ed5e12153
 wheels = [
     { url = "https://files.pythonhosted.org/packages/31/01/1b342637abd859dfa372bcc46fe8d26a25d1d7c9b3d178011556f86e2405/spotipyfree-1.8.2-py3-none-any.whl", hash = "sha256:026cec7a52f32507dd9a85e9c0b2aba1e61e0d279861cf68a97c30d9ec06365c", size = 15475, upload-time = "2026-05-31T03:23:57.841Z" },
 ]
-
-[[package]]
-name = "spotishuffle"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "spotdl", version = "4.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "spotdl", version = "4.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "pytest", version = "9.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
-    { name = "spotdl", specifier = ">=4" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "starlette"

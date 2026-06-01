@@ -1,5 +1,5 @@
 import pytest
-from spotishuffle import device
+from shufflesync import device
 
 
 def _make_ipod(tmp_path, name):

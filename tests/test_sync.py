@@ -1,6 +1,6 @@
 from pathlib import Path
-from spotishuffle import sync, itunessd
-from spotishuffle.device import ShuffleDevice
+from shufflesync import sync, itunessd
+from shufflesync.device import ShuffleDevice
 
 
 def _device(tmp_path):
