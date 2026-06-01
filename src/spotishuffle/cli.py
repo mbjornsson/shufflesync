@@ -20,7 +20,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     missing = downloader.check_dependencies()
     if missing:
         print("Missing required tools: " + ", ".join(missing), file=sys.stderr)
-        print("Install with: pip install spotdl  and  brew install ffmpeg", file=sys.stderr)
+        print("Run `uv sync` to install spotdl, and `brew install ffmpeg`.", file=sys.stderr)
         return 1
 
     playlist_id = args.playlist_url.rstrip("/").split("/")[-1].split("?")[0]

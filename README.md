@@ -5,7 +5,8 @@ no iTunes required.
 
 ## Requirements
 - macOS, Python 3.9+
-- `spotdl` (`pip install spotdl`) and `ffmpeg` (`brew install ffmpeg`)
+- [`uv`](https://docs.astral.sh/uv/) (`brew install uv`)
+- `ffmpeg` (`brew install ffmpeg`) — `spotdl` itself is installed for you by `uv`
 - A 2nd-gen iPod shuffle already initialized by iTunes once (has an
   `iPod_Control` folder), mounted under `/Volumes`.
 - **Disk use enabled.** If Finder/Music manages the iPod, its disk stays
@@ -16,27 +17,34 @@ no iTunes required.
   attached-but-unmounted iPod automatically, but it cannot toggle this setting.
 
 ## Install
-On macOS, Homebrew's Python is "externally managed" (PEP 668) and `pip`
-may not be on your PATH (use `pip3` or `python3 -m pip`). The cleanest install
-is a virtualenv:
+From the project directory:
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+uv sync
 ```
-`spotishuffle` is then on your PATH whenever the venv is active; re-run
-`source .venv/bin/activate` in any new terminal.
-
-To install into Homebrew Python directly instead, use `pip3 install --user -e .`
-(add `--break-system-packages` if it reports `externally-managed-environment`).
+That's it. `uv` creates a `.venv`, installs Python (if needed), and installs
+spotishuffle plus its dependencies from the pinned `uv.lock` — no manual
+virtualenv or `pip` to deal with.
 
 ## Use
+Run the command with `uv run` (no need to activate anything):
+```bash
+uv run spotishuffle "https://open.spotify.com/playlist/<id>"
+```
+Prefer a bare `spotishuffle`? Activate the venv once per terminal with
+`source .venv/bin/activate`, then:
 ```bash
 spotishuffle "https://open.spotify.com/playlist/<id>"
 ```
 It downloads the playlist, finds your mounted shuffle, **replaces** its music
 with the playlist (mirror sync), and writes the device database. Eject the
 shuffle before unplugging.
+
+## Develop
+```bash
+uv sync --extra dev   # install test dependencies
+uv run pytest         # run the tests
+uv add <package>      # add a dependency (updates pyproject.toml + uv.lock)
+```
 
 ## Notes
 - Spotify audio is DRM-protected; like all such tools, `spotdl` matches each
