@@ -66,6 +66,25 @@ def test_download_playlist_with_count_saves_selects_then_downloads(monkeypatch, 
     assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
 
 
+def test_output_template_survives_spotdl_path_sanitization(tmp_path):
+    """spotdl sanitizes the --output template and strips leading dots from each
+    path component (see spotdl.utils.formatter.create_path_object), so an
+    absolute template under a hidden dir like ~/.shufflesync gets rewritten to
+    ~/shufflesync and downloads land in the wrong place. The template must be
+    relative so spotdl resolves it against cwd=dest instead.
+    """
+    from spotdl.utils.formatter import create_path_object
+
+    dest = tmp_path / ".shufflesync" / "cache" / "PID"
+    args = downloader._output_args(dest)
+    template = args[args.index("--output") + 1]
+
+    # Mirror what spotdl does: sanitize the template, then resolve it the way the
+    # downloader does (relative paths are written under the process cwd = dest).
+    resolved = (dest / create_path_object(template)).resolve()
+    assert dest.resolve() in resolved.parents
+
+
 def _tracks(n):
     return [{"name": f"Song {i}", "url": f"https://track/{i}"} for i in range(n)]
 

@@ -28,9 +28,14 @@ def check_dependencies() -> List[str]:
 
 
 def _output_args(dest: Path) -> List[str]:
+    # Keep this template RELATIVE. spotdl sanitizes the --output path and strips
+    # leading dots from every path component (formatter.create_path_object), so an
+    # absolute template under a hidden dir like ~/.shufflesync gets rewritten to
+    # ~/shufflesync and files download to the wrong place. We run spotdl with
+    # cwd=dest, so a relative template resolves into dest untouched.
     return [
         "--output",
-        str(dest / "{list-position} - {title}.{output-ext}"),
+        "{list-position} - {title}.{output-ext}",
         "--format",
         "mp3",
     ]
