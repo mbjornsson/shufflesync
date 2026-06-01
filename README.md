@@ -39,6 +39,18 @@ It downloads the playlist, finds your mounted shuffle, **replaces** its music
 with the playlist (mirror sync), and writes the device database. Eject the
 shuffle before unplugging.
 
+### Limiting how many tracks
+By default the whole playlist is downloaded. To download only some of it:
+```bash
+uv run shufflesync "https://open.spotify.com/playlist/<id>" --count 25
+```
+That takes the first 25 tracks in playlist order. Add `--random` to pick 25 at
+random instead:
+```bash
+uv run shufflesync "https://open.spotify.com/playlist/<id>" --count 25 --random
+```
+If `--count` is larger than the playlist, the whole playlist is downloaded.
+
 ## Develop
 ```bash
 uv sync --extra dev   # install test dependencies

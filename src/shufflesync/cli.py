@@ -24,7 +24,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         "playlist_url",
         help='Spotify playlist URL (quote it, e.g. "https://open.spotify.com/playlist/<id>")',
     )
+    parser.add_argument(
+        "-n",
+        "--count",
+        type=int,
+        default=None,
+        help="Download at most this many tracks (default: the whole playlist).",
+    )
+    parser.add_argument(
+        "--random",
+        dest="randomize",
+        action="store_true",
+        help="With --count, pick the tracks at random instead of the first N.",
+    )
     args = parser.parse_args(argv)
+
+    if args.count is not None and args.count <= 0:
+        print("--count must be a positive number.", file=sys.stderr)
+        return 1
 
     missing = downloader.check_dependencies()
     if missing:
@@ -36,7 +53,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     dest = CACHE_DIR / playlist_id
 
     print(f"Downloading playlist into {dest} ...")
-    files = downloader.download_playlist(args.playlist_url, dest)
+    files = downloader.download_playlist(
+        args.playlist_url, dest, count=args.count, randomize=args.randomize
+    )
     if not files:
         print("No tracks were downloaded.", file=sys.stderr)
         return 1

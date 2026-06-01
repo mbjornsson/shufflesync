@@ -1,3 +1,6 @@
+import random
+from pathlib import Path
+
 import pytest
 from shufflesync import downloader
 
@@ -31,3 +34,60 @@ def test_download_playlist_invokes_spotdl_and_returns_mp3s(monkeypatch, tmp_path
     assert "https://open.spotify.com/playlist/abc" in calls["cmd"]
     assert "--output" in calls["cmd"]
     assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
+
+
+def test_download_playlist_with_count_saves_selects_then_downloads(monkeypatch, tmp_path):
+    import json
+
+    cmds = []
+
+    def fake_run(cmd, cwd, check):
+        cmds.append(cmd)
+        if "save" in cmd:
+            save_file = Path(cmd[cmd.index("--save-file") + 1])
+            save_file.write_text(json.dumps(_tracks(5)))
+        else:  # download
+            (tmp_path / "01 - Song A.mp3").write_bytes(b"a")
+            (tmp_path / "02 - Song B.mp3").write_bytes(b"b")
+        class R: returncode = 0
+        return R()
+
+    monkeypatch.setattr(downloader.subprocess, "run", fake_run)
+    files = downloader.download_playlist(
+        "https://open.spotify.com/playlist/abc", tmp_path, count=2, randomize=False
+    )
+
+    save_cmd, download_cmd = cmds
+    assert save_cmd[:2] == ["spotdl", "save"]
+    assert download_cmd[:2] == ["spotdl", "download"]
+    # download runs against the trimmed save file holding exactly 2 tracks
+    trimmed = Path(download_cmd[2])
+    assert json.loads(trimmed.read_text()) == _tracks(5)[:2]
+    assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
+
+
+def _tracks(n):
+    return [{"name": f"Song {i}", "url": f"https://track/{i}"} for i in range(n)]
+
+
+def test_select_tracks_takes_first_n_in_order():
+    selected = downloader.select_tracks(_tracks(5), count=3, randomize=False)
+    assert [t["name"] for t in selected] == ["Song 0", "Song 1", "Song 2"]
+
+
+def test_select_tracks_random_picks_n_distinct_tracks():
+    tracks = _tracks(5)
+    random.seed(0)
+    selected = downloader.select_tracks(tracks, count=3, randomize=True)
+    assert len(selected) == 3
+    names = [t["name"] for t in selected]
+    assert len(set(names)) == 3
+    assert all(t in tracks for t in selected)
+    # not simply the first three, given this seed
+    assert names != ["Song 0", "Song 1", "Song 2"]
+
+
+def test_select_tracks_count_exceeds_length_returns_all():
+    tracks = _tracks(2)
+    assert downloader.select_tracks(tracks, count=10, randomize=False) == tracks
+    assert downloader.select_tracks(tracks, count=10, randomize=True) == tracks

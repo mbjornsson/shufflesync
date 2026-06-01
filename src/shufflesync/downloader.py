@@ -1,10 +1,25 @@
 """Download a Spotify playlist as MP3s using the external `spotdl` tool."""
+import json
+import random
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 REQUIRED = ("spotdl", "ffmpeg")
+
+
+def select_tracks(tracks: List[dict], count: int, randomize: bool) -> List[dict]:
+    """Pick `count` tracks: first N in order, or a random sample (kept in order).
+
+    If `count` is at least the number of tracks, all are returned unchanged.
+    """
+    if count >= len(tracks):
+        return tracks
+    if randomize:
+        indexes = sorted(random.sample(range(len(tracks)), count))
+        return [tracks[i] for i in indexes]
+    return tracks[:count]
 
 
 def check_dependencies() -> List[str]:
@@ -12,17 +27,46 @@ def check_dependencies() -> List[str]:
     return [name for name in REQUIRED if shutil.which(name) is None]
 
 
-def download_playlist(playlist_url: str, dest: Path) -> List[Path]:
-    """Run spotdl to download `playlist_url` into `dest`; return MP3 paths sorted by name."""
-    dest.mkdir(parents=True, exist_ok=True)
-    cmd = [
-        "spotdl",
-        "download",
-        playlist_url,
+def _output_args(dest: Path) -> List[str]:
+    return [
         "--output",
         str(dest / "{list-position} - {title}.{output-ext}"),
         "--format",
         "mp3",
     ]
+
+
+def download_playlist(
+    playlist_url: str,
+    dest: Path,
+    count: Optional[int] = None,
+    randomize: bool = False,
+) -> List[Path]:
+    """Download `playlist_url` into `dest`; return MP3 paths sorted by name.
+
+    With `count` set, only that many tracks are downloaded: the playlist
+    metadata is fetched first, `count` tracks are selected (first N, or a random
+    sample when `randomize` is true), and only those are downloaded.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+
+    if count is None:
+        query = playlist_url
+    else:
+        all_tracks = fetch_track_list(playlist_url, dest)
+        selected = select_tracks(all_tracks, count, randomize)
+        trimmed = dest / "selection.spotdl"
+        trimmed.write_text(json.dumps(selected))
+        query = str(trimmed)
+
+    cmd = ["spotdl", "download", query, *_output_args(dest)]
     subprocess.run(cmd, cwd=dest, check=True)
     return sorted(dest.glob("*.mp3"))
+
+
+def fetch_track_list(playlist_url: str, dest: Path) -> List[dict]:
+    """Run `spotdl save` to fetch playlist metadata without downloading audio."""
+    save_file = dest / "playlist.spotdl"
+    cmd = ["spotdl", "save", playlist_url, "--save-file", str(save_file)]
+    subprocess.run(cmd, cwd=dest, check=True)
+    return json.loads(save_file.read_text())

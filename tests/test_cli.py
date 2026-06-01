@@ -8,8 +8,8 @@ def test_main_happy_path(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
     fake_files = [tmp_path / "a.mp3"]
 
-    def fake_download(url, dest):
-        events.append(("download", url))
+    def fake_download(url, dest, count=None, randomize=False):
+        events.append(("download", url, count, randomize))
         return fake_files
     monkeypatch.setattr(cli.downloader, "download_playlist", fake_download)
 
@@ -24,8 +24,35 @@ def test_main_happy_path(monkeypatch, tmp_path, capsys):
 
     rc = cli.main(["https://open.spotify.com/playlist/abc"])
     assert rc == 0
-    assert ("download", "https://open.spotify.com/playlist/abc") in events
+    assert ("download", "https://open.spotify.com/playlist/abc", None, False) in events
     assert ("sync", 1) in events
+
+
+def test_main_passes_count_and_random_flags(monkeypatch, tmp_path):
+    captured = {}
+
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+
+    def fake_download(url, dest, count=None, randomize=False):
+        captured["count"] = count
+        captured["randomize"] = randomize
+        return [tmp_path / "a.mp3"]
+    monkeypatch.setattr(cli.downloader, "download_playlist", fake_download)
+
+    class FakeDevice:
+        root = tmp_path
+    monkeypatch.setattr(cli.device, "select_shuffle", lambda: FakeDevice())
+    monkeypatch.setattr(cli.sync, "mirror_sync", lambda dev, files: len(files))
+
+    rc = cli.main(["https://open.spotify.com/playlist/abc", "--count", "5", "--random"])
+    assert rc == 0
+    assert captured == {"count": 5, "randomize": True}
+
+
+def test_main_rejects_non_positive_count(monkeypatch):
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+    rc = cli.main(["https://open.spotify.com/playlist/abc", "--count", "0"])
+    assert rc == 1
 
 
 def test_main_missing_deps_errors(monkeypatch):
