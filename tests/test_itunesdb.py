@@ -88,3 +88,22 @@ def test_playlist_item_references_track_id():
     assert _u32(item, 0x18) == 42              # track id
     assert item[76:80] == b"mhod"             # position mhod follows the 76-byte header
     assert _u32(item, 8) == len(item)          # total_len includes child mhod
+
+
+def test_build_itunesdb_full_structure():
+    db = itunesdb.build_itunesdb([_entry(1), _entry(2)], "Evening Chill")
+    assert db[0:4] == b"mhbd"
+    assert _u32(db, 4) == 244                   # mhbd header_len
+    assert _u32(db, 8) == len(db)               # total_len spans whole file
+    assert _u32(db, 0x14) == 2                  # two datasets
+    assert db[0x46:0x48] == b"en"              # language
+    first = db[244:]
+    assert first[0:4] == b"mhsd" and _u32(first, 0x0c) == 1
+    second = first[_u32(first, 8):]
+    assert second[0:4] == b"mhsd" and _u32(second, 0x0c) == 2
+
+
+def test_build_itunesdb_empty_playlist():
+    db = itunesdb.build_itunesdb([], "Empty")
+    assert db[0:4] == b"mhbd"
+    assert _u32(db, 0x14) == 2

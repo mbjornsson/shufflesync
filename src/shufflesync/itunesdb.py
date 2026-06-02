@@ -135,3 +135,24 @@ def playlist_dataset(playlist_name: str, track_ids: List[int]) -> bytes:
     master = _mhyp("shufflesync", track_ids, is_master=True)
     named = _mhyp(playlist_name, track_ids, is_master=False)
     return _mhsd(2, bytes(mhlp) + master + named)
+
+
+def _mhbd(dataset_count: int, body: bytes) -> bytes:
+    h = bytearray(244)
+    h[0:4] = b"mhbd"
+    h[4:8] = _u32(244)
+    h[8:12] = _u32(244 + len(body))
+    h[12:16] = _u32(1)                  # unk1
+    h[16:20] = _u32(0x13)               # db version (libgpod-compatible)
+    h[20:24] = _u32(dataset_count)
+    h[24:32] = b"shuffl\x00\x00"         # 8-byte library id (stable, arbitrary)
+    h[0x46:0x48] = b"en"                # language
+    return bytes(h) + body
+
+
+def build_itunesdb(entries: List["TrackEntry"], playlist_name: str) -> bytes:
+    """Serialize a full iTunesDB: one track dataset + one playlist dataset
+    (master playlist + a named playlist) referencing every track."""
+    track_ids = [e.track_id for e in entries]
+    body = track_dataset(entries) + playlist_dataset(playlist_name, track_ids)
+    return _mhbd(2, body)
