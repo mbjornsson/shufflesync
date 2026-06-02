@@ -40,12 +40,23 @@ independently of device hardware (except the manual end-to-end check).
 ## Device detection & dispatch (`device.py`)
 
 - Add `class DeviceFamily(Enum)` with members `SHUFFLE_2G` and `NANO_1G_3G`
-  (the latter covering nano 1st through 3rd gen).
-- `detect_family(root) -> DeviceFamily | None`: read
-  `iPod_Control/Device/SysInfoExtended` (XML plist; key `ModelNumStr`), falling
-  back to the plain-text `iPod_Control/Device/SysInfo` (`ModelNumStr: ...`). Map
-  the model string to a family via a small lookup of known nano 1–3G and
-  shuffle 2G model numbers. Unknown model → `None`.
+  (the latter covering nano 1st through 3rd gen / the classic no-checksum
+  iTunesDB device).
+- `detect_family(root) -> DeviceFamily | None`, using the **on-disk database as
+  the authoritative signal** (not `SysInfo`):
+  - `iTunes/iTunesSD` present → `SHUFFLE_2G`.
+  - else `iTunes/iTunesDB` present → parse the `mhbd` header and read the
+    checksum/hashing-scheme field. If it indicates **no checksum** →
+    `NANO_1G_3G` (our unsigned DB will be accepted). If it requires a checksum
+    (nano 4G+, classic, touch) → unsupported: raise a clear error rather than
+    write a DB the device will reject.
+  - else → `None` (cannot determine).
+  - **Rationale (from the real device):** the attached nano ships with an
+    *empty* `Device/SysInfo` and *no* `SysInfoExtended`, so model-string lookup
+    is unreliable. The `mhbd` checksum field is exactly what decides whether an
+    unsigned DB is valid, making it both the safest and most robust signal. The
+    exact field offset is pinned during implementation against the captured
+    golden reference and libgpod's documented `mhbd` layout.
 - Replace `ShuffleDevice` with `IpodDevice`:
   - `root: Path`, `family: DeviceFamily`
   - `music_dir` → `root / "iPod_Control" / "Music"` (same for both)
@@ -115,9 +126,15 @@ playlist, falling back to a default).
 
 ## Testing
 
-- **Prerequisite (step 0):** with the nano in disk mode, capture its real
-  `iTunesDB` to `tests/fixtures/golden_nano/iTunesDB`, used both to reverse-check
-  field offsets and as a test reference.
+- **Reverse-engineering reference (local, git-ignored):** the nano's real
+  `iTunesDB` has been captured to `device-backup-nano-*/iTunes/iTunesDB` (matched
+  by the existing `device-backup-*/` gitignore rule). It is used only locally to
+  pin field offsets. It is **not committed**, because an `iTunesDB` embeds the
+  owner's library metadata (track titles/artists) — unlike the shuffle's
+  `iTunesSD`, which stores only file paths. This repo is public.
+- **Committed test fixture (synthetic):** `tests/fixtures/golden_nano/iTunesDB`
+  is a small DB with placeholder track names (e.g. "Test Track 1"), produced by
+  our own writer once it is validated against the real device — no personal data.
 - `itunesdb.py`: golden-fixture structural tests mirroring `test_itunessd.py` —
   chunk identifiers and sizes, mhod strings (UTF-16LE), track count, and the
   presence/content of the master and named playlists. Build a DB for a known
