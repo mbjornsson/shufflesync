@@ -1,20 +1,34 @@
 # shufflesync
 
-Download a Spotify playlist and mirror it onto a 2nd-generation iPod shuffle —
-no iTunes required.
+Download a Spotify playlist and mirror it onto an iPod — no iTunes required.
+shufflesync auto-detects the attached device and writes the right database
+format for it.
+
+## Supported devices
+- **2nd-gen iPod shuffle** — writes the `iTunesSD` database.
+- **iPod nano, 1st–3rd gen** — writes the `iTunesDB` database, including a
+  playlist named after the source Spotify playlist.
+
+**Not supported:** checksummed iPods (nano 4th gen and later, iPod classic, iPod
+touch). Their database requires a hardware signature shufflesync cannot produce
+— syncing to one would replace its music and leave an empty library, so don't.
 
 ## Requirements
 - macOS, Python 3.9+
 - [`uv`](https://docs.astral.sh/uv/) (`brew install uv`)
 - `ffmpeg` (`brew install ffmpeg`) — `spotdl` itself is installed for you by `uv`
-- A 2nd-gen iPod shuffle already initialized by iTunes once (has an
-  `iPod_Control` folder), mounted under `/Volumes`.
+- A supported iPod already initialized by iTunes once (has an `iPod_Control`
+  folder), mounted under `/Volumes`.
 - **Disk use enabled.** If Finder/Music manages the iPod, its disk stays
   unmounted (it only appears for a moment during a Finder sync). Select the
   iPod in Finder, turn on **"Enable disk use"** (or **"Manually manage
   music"**), and click **Apply** so the volume stays mounted under `/Volumes`.
   This is a one-time, on-device setting. shufflesync will try to mount an
   attached-but-unmounted iPod automatically, but it cannot toggle this setting.
+- **Old nano that modern macOS won't manage?** Put it into disk mode on the
+  device itself so it mounts as a USB drive: toggle the **Hold** switch on then
+  off, reset with **Menu+Select**, then immediately hold **Select+Play** to
+  enter disk mode.
 
 ## Install
 From the project directory:
@@ -35,9 +49,9 @@ Prefer a bare `shufflesync`? Activate the venv once per terminal with
 ```bash
 shufflesync "https://open.spotify.com/playlist/<id>"
 ```
-It downloads the playlist, finds your mounted shuffle, **replaces** its music
+It downloads the playlist, finds your mounted iPod, **replaces** its music
 with the playlist (mirror sync), and writes the device database. Eject the
-shuffle before unplugging.
+iPod before unplugging.
 
 ### Limiting how many tracks
 By default the whole playlist is downloaded. To download only some of it:
