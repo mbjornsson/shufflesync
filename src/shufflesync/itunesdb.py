@@ -24,3 +24,51 @@ def string_mhod(mhod_type: int, text: str) -> bytes:
     body[0x18:0x1c] = _u32(1)             # position
     body[0x1c:0x20] = _u32(len(encoded))  # byte length
     return bytes(body) + encoded
+
+
+MHIT_HEADER_LEN = 0x184
+# Offsets confirmed empirically against the golden device DB (Task 0).
+MHIT_OFFSETS = {"size": 0x24, "length_ms": 0x28, "sample_rate": 0x3c}
+
+
+@dataclass(frozen=True)
+class TrackEntry:
+    track_id: int
+    title: str
+    artist: str
+    album: str
+    genre: str
+    location: str          # colon path, e.g. ":iPod_Control:Music:F00:T0001.mp3"
+    size: int
+    duration_ms: int
+    bitrate: int
+    sample_rate: int
+    track_number: int
+    year: int
+
+
+def track_mhit(entry: "TrackEntry") -> bytes:
+    mhods = b"".join([
+        string_mhod(1, entry.title),
+        string_mhod(4, entry.artist),
+        string_mhod(3, entry.album),
+        string_mhod(5, entry.genre),
+        string_mhod(2, entry.location),
+    ])
+    h = bytearray(MHIT_HEADER_LEN)
+    h[0:4] = b"mhit"
+    h[4:8] = _u32(MHIT_HEADER_LEN)
+    h[8:12] = _u32(MHIT_HEADER_LEN + len(mhods))
+    h[12:16] = _u32(5)                  # mhod count
+    h[16:20] = _u32(entry.track_id)
+    h[20:24] = _u32(1)                  # visible
+    h[0x18:0x1c] = b"MP3 "[::-1]        # filetype marker
+    h[0x1c] = 1                          # type1
+    h[0x1d] = 1                          # type2
+    h[MHIT_OFFSETS["size"]:MHIT_OFFSETS["size"] + 4] = _u32(entry.size)
+    h[MHIT_OFFSETS["length_ms"]:MHIT_OFFSETS["length_ms"] + 4] = _u32(entry.duration_ms)
+    h[0x2c:0x30] = _u32(entry.track_number)
+    h[0x34:0x38] = _u32(entry.year)
+    h[0x38:0x3a] = struct.pack("<H", entry.bitrate)
+    h[MHIT_OFFSETS["sample_rate"]:MHIT_OFFSETS["sample_rate"] + 4] = _u32(entry.sample_rate << 16)
+    return bytes(h) + mhods

@@ -22,3 +22,26 @@ def test_location_mhod_uses_colon_path():
     m = itunesdb.string_mhod(2, ":iPod_Control:Music:F00:T0001.mp3")
     assert _u32(m, 12) == 2
     assert m[40:].decode("utf-16-le") == ":iPod_Control:Music:F00:T0001.mp3"
+
+
+def test_track_entry_to_mhit_fields():
+    entry = itunesdb.TrackEntry(
+        track_id=7, title="T", artist="A", album="Al", genre="G",
+        location=":iPod_Control:Music:F00:T0007.mp3",
+        size=123456, duration_ms=98000, bitrate=192, sample_rate=44100,
+        track_number=7, year=2009,
+    )
+    m = itunesdb.track_mhit(entry)
+    assert m[0:4] == b"mhit"
+    assert _u32(m, 4) == 0x184                 # header_len
+    assert _u32(m, 8) == len(m)                # total_len
+    assert _u32(m, 12) == 5                    # mhod count
+    assert _u32(m, 16) == 7                    # track id
+    assert _u32(m, 20) == 1                    # visible
+    assert m[0x18:0x1c] == b"MP3 "[::-1]       # filetype
+    assert m[0x1c] == 1 and m[0x1d] == 1       # type1, type2
+    assert _u32(m, itunesdb.MHIT_OFFSETS["size"]) == 123456
+    assert _u32(m, itunesdb.MHIT_OFFSETS["length_ms"]) == 98000
+    assert _u32(m, 0x2c) == 7                  # track number
+    assert _u32(m, 0x34) == 2009               # year
+    assert m[0x184:0x184 + 4] == b"mhod"
