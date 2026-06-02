@@ -86,8 +86,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(str(e), file=sys.stderr)
         return 1
 
+    playlist_name = playlist_id  # best-effort; spotdl save names are not exposed here
     print(f"Syncing {len(files)} track(s) to {dev.root} ...")
-    synced = sync.mirror_sync(dev, files)
+    synced = sync.mirror_sync(dev, files, playlist_name=playlist_name)
     print(f"Done. {synced} track(s) on the shuffle. Eject before unplugging.")
     return 0
 

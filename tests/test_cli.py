@@ -17,7 +17,7 @@ def test_main_happy_path(monkeypatch, tmp_path, capsys):
         root = tmp_path
     monkeypatch.setattr(cli.device, "select_ipod", lambda: FakeDevice())
 
-    def fake_sync(dev, files):
+    def fake_sync(dev, files, playlist_name="shufflesync"):
         events.append(("sync", len(files)))
         return len(files)
     monkeypatch.setattr(cli.sync, "mirror_sync", fake_sync)
@@ -42,7 +42,7 @@ def test_main_passes_count_and_random_flags(monkeypatch, tmp_path):
     class FakeDevice:
         root = tmp_path
     monkeypatch.setattr(cli.device, "select_ipod", lambda: FakeDevice())
-    monkeypatch.setattr(cli.sync, "mirror_sync", lambda dev, files: len(files))
+    monkeypatch.setattr(cli.sync, "mirror_sync", lambda dev, files, playlist_name=None: len(files))
 
     rc = cli.main(["https://open.spotify.com/playlist/abc", "--count", "5", "--random"])
     assert rc == 0

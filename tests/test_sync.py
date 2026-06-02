@@ -1,6 +1,18 @@
 from pathlib import Path
-from shufflesync import sync, itunessd
+from shufflesync import sync, itunessd, itunesdb, device
 from shufflesync.device import IpodDevice, DeviceFamily
+from mutagen.id3 import ID3, TIT2, TPE1, TALB
+from mutagen.mp3 import MP3
+
+
+def _make_mp3(path):
+    frame = bytes.fromhex("fffb9064") + b"\x00" * 413  # one MPEG1 L3 128k/44.1k frame
+    path.write_bytes(frame * 40)
+    tags = ID3()
+    tags.add(TIT2(encoding=3, text=path.stem))
+    tags.add(TPE1(encoding=3, text="Artist"))
+    tags.add(TALB(encoding=3, text="Album"))
+    tags.save(path)
 
 
 def _device(tmp_path):
@@ -71,3 +83,22 @@ def test_mirror_skips_overflow_when_capacity_exceeded(tmp_path, monkeypatch, cap
     assert synced == 1
     assert "Skipped 2" in capsys.readouterr().out
     assert dev.db_path.read_bytes()[:3] == b"\x00\x00\x01"
+
+
+def test_mirror_sync_nano_writes_itunesdb(tmp_path):
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+    a, b = src_dir / "01 A.mp3", src_dir / "02 B.mp3"
+    _make_mp3(a); _make_mp3(b)
+
+    root = tmp_path / "NANO"
+    (root / "iPod_Control" / "iTunes").mkdir(parents=True)
+    dev = device.IpodDevice(root, device.DeviceFamily.NANO_1G_3G)
+
+    count = sync.mirror_sync(dev, [a, b], playlist_name="My List")
+    assert count == 2
+
+    db = dev.db_path.read_bytes()
+    assert db[0:4] == b"mhbd"
+    assert "My List".encode("utf-16-le") in db
+    assert (dev.music_dir / "F00" / "T0001.mp3").exists()
