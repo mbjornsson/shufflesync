@@ -14,7 +14,7 @@ CACHE_DIR = Path.home() / ".shufflesync" / "cache"
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="shufflesync",
-        description="Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle.",
+        description="Download a Spotify playlist and mirror it onto an iPod (2nd-gen shuffle or 1st-3rd gen nano).",
         epilog=(
             'Quote the URL — it usually contains "?si=..." and the shell will '
             "otherwise mangle it:\n"
@@ -89,7 +89,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     playlist_name = playlist_id  # best-effort; spotdl save names are not exposed here
     print(f"Syncing {len(files)} track(s) to {dev.root} ...")
     synced = sync.mirror_sync(dev, files, playlist_name=playlist_name)
-    print(f"Done. {synced} track(s) on the shuffle. Eject before unplugging.")
+    print(f"Done. {synced} track(s) on the iPod. Eject before unplugging.")
     return 0
 
 
