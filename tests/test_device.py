@@ -46,6 +46,20 @@ def test_detect_family_unknown_when_db_not_mhbd(tmp_path):
     assert device.detect_family(root) is None
 
 
+def test_detect_family_signed_itunesdb_is_unsupported(tmp_path):
+    """A checksummed iTunesDB (nano 4G+, classic, touch) carries a database
+    signature in the mhbd header; we must refuse it rather than wipe it into an
+    empty library."""
+    root = tmp_path / "SIGNED"
+    itunes = root / "iPod_Control" / "iTunes"
+    itunes.mkdir(parents=True)
+    mhbd = bytearray(244)
+    mhbd[0:4] = b"mhbd"
+    mhbd[0x58] = 0x42  # a non-zero byte in the signature region
+    (itunes / "iTunesDB").write_bytes(bytes(mhbd))
+    assert device.detect_family(root) is None
+
+
 # --- find_ipods ---
 
 def test_find_ipods_detects_ipod(tmp_path):

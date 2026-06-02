@@ -10,8 +10,9 @@ format for it.
   playlist named after the source Spotify playlist.
 
 **Not supported:** checksummed iPods (nano 4th gen and later, iPod classic, iPod
-touch). Their database requires a hardware signature shufflesync cannot produce
-— syncing to one would replace its music and leave an empty library, so don't.
+touch). Their database requires a hardware signature shufflesync cannot produce.
+shufflesync detects these and **refuses them with an error** — it won't touch
+their music.
 
 ## Requirements
 - macOS, Python 3.9+
