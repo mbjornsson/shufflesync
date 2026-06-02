@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 
 from . import itunessd
-from .device import ShuffleDevice
+from .device import IpodDevice
 
 FILES_PER_FOLDER = 100
 CAPACITY_MARGIN = 1 * 1024 * 1024  # leave 1 MiB headroom
@@ -21,7 +21,7 @@ def _filetype(path: Path) -> str:
     return "mp3"
 
 
-def mirror_sync(device: ShuffleDevice, source_files: List[Path]) -> int:
+def mirror_sync(device: IpodDevice, source_files: List[Path]) -> int:
     """Replace the device's music with `source_files` (in order). Returns count synced."""
     music = device.music_dir
     if music.exists():
@@ -47,8 +47,8 @@ def mirror_sync(device: ShuffleDevice, source_files: List[Path]) -> int:
         used += size
         index += 1
 
-    device.itunessd_path.parent.mkdir(parents=True, exist_ok=True)
-    device.itunessd_path.write_bytes(itunessd.build_itunessd(tracks))
+    device.db_path.parent.mkdir(parents=True, exist_ok=True)
+    device.db_path.write_bytes(itunessd.build_itunessd(tracks))
 
     if skipped:
         print(f"Skipped {skipped} track(s): not enough space on device.")

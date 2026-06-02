@@ -1,6 +1,6 @@
 from pathlib import Path
 from shufflesync import sync, itunessd
-from shufflesync.device import ShuffleDevice
+from shufflesync.device import IpodDevice, DeviceFamily
 
 
 def _device(tmp_path):
@@ -8,7 +8,7 @@ def _device(tmp_path):
     (root / "iPod_Control" / "iTunes").mkdir(parents=True)
     (root / "iPod_Control" / "Music" / "OLD").mkdir(parents=True)
     (root / "iPod_Control" / "Music" / "OLD" / "stale.mp3").write_bytes(b"old")
-    return ShuffleDevice(root)
+    return IpodDevice(root, DeviceFamily.SHUFFLE_2G)
 
 
 def _src(tmp_path, n, size=4):
@@ -42,7 +42,7 @@ def test_mirror_writes_itunessd_matching_files(tmp_path):
     dev = _device(tmp_path)
     files = _src(tmp_path, 2)
     sync.mirror_sync(dev, files)
-    data = dev.itunessd_path.read_bytes()
+    data = dev.db_path.read_bytes()
     assert data[:3] == b"\x00\x00\x02"
     expected = itunessd.build_itunessd([
         ("/iPod_Control/Music/F00/T0001.mp3", "mp3"),
@@ -70,4 +70,4 @@ def test_mirror_skips_overflow_when_capacity_exceeded(tmp_path, monkeypatch, cap
     synced = sync.mirror_sync(dev, files)
     assert synced == 1
     assert "Skipped 2" in capsys.readouterr().out
-    assert dev.itunessd_path.read_bytes()[:3] == b"\x00\x00\x01"
+    assert dev.db_path.read_bytes()[:3] == b"\x00\x00\x01"

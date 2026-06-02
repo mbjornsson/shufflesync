@@ -2,49 +2,107 @@ import pytest
 from shufflesync import device
 
 
-def _make_ipod(tmp_path, name):
-    root = tmp_path / name
-    (root / "iPod_Control" / "iTunes").mkdir(parents=True)
+def _shuffle(tmp_path):
+    root = tmp_path / "SHUFFLE"
+    itunes = root / "iPod_Control" / "iTunes"
+    itunes.mkdir(parents=True)
     (root / "iPod_Control" / "Music").mkdir(parents=True)
+    (itunes / "iTunesSD").write_bytes(b"\x00" * 18)
     return root
 
 
-def test_find_shuffles_detects_ipod(tmp_path):
-    root = _make_ipod(tmp_path, "SHUFFLE")
+def _nano(tmp_path):
+    root = tmp_path / "NANO"
+    itunes = root / "iPod_Control" / "iTunes"
+    itunes.mkdir(parents=True)
+    (root / "iPod_Control" / "Music").mkdir(parents=True)
+    mhbd = bytearray(244)
+    mhbd[0:4] = b"mhbd"
+    (itunes / "iTunesDB").write_bytes(bytes(mhbd))
+    return root
+
+
+# --- detect_family ---
+
+def test_detect_family_shuffle(tmp_path):
+    assert device.detect_family(_shuffle(tmp_path)) == device.DeviceFamily.SHUFFLE_2G
+
+
+def test_detect_family_nano(tmp_path):
+    assert device.detect_family(_nano(tmp_path)) == device.DeviceFamily.NANO_1G_3G
+
+
+def test_detect_family_unknown_when_no_database(tmp_path):
+    root = tmp_path / "BARE"
+    (root / "iPod_Control" / "iTunes").mkdir(parents=True)
+    assert device.detect_family(root) is None
+
+
+def test_detect_family_unknown_when_db_not_mhbd(tmp_path):
+    root = tmp_path / "WEIRD"
+    itunes = root / "iPod_Control" / "iTunes"
+    itunes.mkdir(parents=True)
+    (itunes / "iTunesDB").write_bytes(b"junk" + b"\x00" * 240)
+    assert device.detect_family(root) is None
+
+
+# --- find_ipods ---
+
+def test_find_ipods_detects_ipod(tmp_path):
+    root = _shuffle(tmp_path)
     (tmp_path / "NotAnIpod").mkdir()
-    found = device.find_shuffles(volumes_dir=tmp_path)
+    found = device.find_ipods(volumes_dir=tmp_path)
     assert found == [root]
 
 
-def test_select_shuffle_zero_raises(tmp_path):
+# --- select_ipod ---
+
+def test_select_ipod_zero_raises(tmp_path):
     with pytest.raises(device.NoDeviceError):
-        device.select_shuffle(volumes_dir=tmp_path, mounter=lambda: None)
+        device.select_ipod(volumes_dir=tmp_path, mounter=lambda: None)
 
 
-def test_select_shuffle_mounts_then_finds(tmp_path):
-    root = tmp_path / "SHUFFLE"
+def test_select_ipod_mounts_then_finds(tmp_path):
+    root = tmp_path / "NANO"
 
     def fake_mount():
-        _make_ipod(tmp_path, "SHUFFLE")  # appears only after mounting
+        _nano(tmp_path)  # appears only after mounting
 
-    dev = device.select_shuffle(volumes_dir=tmp_path, mounter=fake_mount)
+    dev = device.select_ipod(volumes_dir=tmp_path, mounter=fake_mount)
     assert dev.root == root
 
 
-def test_select_shuffle_one_returns_device(tmp_path):
-    root = _make_ipod(tmp_path, "SHUFFLE")
-    dev = device.select_shuffle(volumes_dir=tmp_path)
+def test_select_ipod_one_returns_device(tmp_path):
+    root = _shuffle(tmp_path)
+    dev = device.select_ipod(volumes_dir=tmp_path)
     assert dev.root == root
     assert dev.music_dir == root / "iPod_Control" / "Music"
-    assert dev.itunessd_path == root / "iPod_Control" / "iTunes" / "iTunesSD"
+    assert dev.db_path == root / "iPod_Control" / "iTunes" / "iTunesSD"
 
 
-def test_select_shuffle_many_uses_chooser(tmp_path):
-    a = _make_ipod(tmp_path, "A")
-    b = _make_ipod(tmp_path, "B")
-    dev = device.select_shuffle(volumes_dir=tmp_path, chooser=lambda opts: opts[1])
+def test_select_ipod_many_uses_chooser(tmp_path):
+    _shuffle(tmp_path)
+    b = _nano(tmp_path)
+    # find_ipods sorts paths; NANO < SHUFFLE lexicographically, so opts[0] is NANO
+    dev = device.select_ipod(volumes_dir=tmp_path, chooser=lambda opts: opts[0])
     assert dev.root == b
 
+
+def test_select_ipod_returns_device_with_family(tmp_path):
+    root = _nano(tmp_path)
+    dev = device.select_ipod(volumes_dir=tmp_path)
+    assert dev.root == root
+    assert dev.family == device.DeviceFamily.NANO_1G_3G
+    assert dev.db_path == root / "iPod_Control" / "iTunes" / "iTunesDB"
+
+
+def test_select_ipod_unsupported_raises(tmp_path):
+    (tmp_path / "X" / "iPod_Control" / "iTunes").mkdir(parents=True)
+    with pytest.raises(device.UnsupportedDeviceError):
+        device.select_ipod(volumes_dir=tmp_path)
+
+
+# --- mount_external_disks ---
 
 def test_mount_external_disks_mounts_every_identifier(monkeypatch):
     """Parse `diskutil list -plist` output and issue a mount for each whole disk

@@ -81,8 +81,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     try:
-        dev = device.select_shuffle()
-    except device.NoDeviceError as e:
+        dev = device.select_ipod()
+    except (device.NoDeviceError, device.UnsupportedDeviceError) as e:
         print(str(e), file=sys.stderr)
         return 1
 
