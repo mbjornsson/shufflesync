@@ -1597,6 +1597,7 @@ name = "shufflesync"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "mutagen" },
     { name = "spotdl", version = "4.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "spotdl", version = "4.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
@@ -1609,6 +1610,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "mutagen", specifier = ">=1.47" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "spotdl", specifier = ">=4" },
 ]

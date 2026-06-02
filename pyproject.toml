@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle"
 license = { text = "MIT" }
 requires-python = ">=3.9"
-dependencies = ["spotdl>=4"]
+dependencies = ["spotdl>=4", "mutagen>=1.47"]
 
 [project.scripts]
 shufflesync = "shufflesync.cli:main"
