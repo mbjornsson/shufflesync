@@ -1,4 +1,4 @@
-# spotishuffle — Spotify playlists → iPod shuffle (2nd gen)
+# shufflesync — Spotify playlists → iPod shuffle (2nd gen)
 
 **Date:** 2026-06-01
 **Status:** Approved design
@@ -10,7 +10,7 @@ audio via `spotdl`, and mirrors it onto a 2nd-generation iPod shuffle by writing
 the device's native `iTunesSD` database directly — no iTunes required.
 
 ```
-spotishuffle <playlist-url>
+shufflesync <playlist-url>
 ```
 
 ## Goals
@@ -51,7 +51,7 @@ Thin wrapper around `spotdl`.
 
 - **Input:** Spotify playlist URL + a cache directory.
 - **Behavior:** invokes `spotdl` to fetch/match/tag tracks as MP3 into
-  `~/.spotishuffle/cache/<playlist-id>/`. Preserves playlist order. Caches
+  `~/.shufflesync/cache/<playlist-id>/`. Preserves playlist order. Caches
   downloads so re-syncing an unchanged playlist does not re-download.
 - **Output:** an ordered list of local MP3 file paths.
 - **Depends on:** `spotdl`, `yt-dlp`, `ffmpeg`. Presence is checked at startup
@@ -138,5 +138,5 @@ Built test-first (TDD).
 
 ## Runtime / Packaging
 
-Python 3 (matches `spotdl`). Packaged so `spotishuffle` is a single installable
+Python 3 (matches `spotdl`). Packaged so `shufflesync` is a single installable
 console command.

@@ -1,4 +1,4 @@
-# spotishuffle Implementation Plan
+# shufflesync Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -39,13 +39,13 @@ Confirmed against `tests/fixtures/golden_device/iTunes/iTunesSD` (11 tracks, 615
 
 ## File Structure
 
-- Create: `pyproject.toml` — packaging + `spotishuffle` console script + pytest config
-- Create: `src/spotishuffle/__init__.py`
-- Create: `src/spotishuffle/itunessd.py` — `build_header`, `encode_path`, `build_entry`, `build_itunessd`
-- Create: `src/spotishuffle/device.py` — `find_shuffles`, `select_shuffle`, `ShuffleDevice`
-- Create: `src/spotishuffle/downloader.py` — `check_dependencies`, `download_playlist`
-- Create: `src/spotishuffle/sync.py` — `mirror_sync`
-- Create: `src/spotishuffle/cli.py` — `main`
+- Create: `pyproject.toml` — packaging + `shufflesync` console script + pytest config
+- Create: `src/shufflesync/__init__.py`
+- Create: `src/shufflesync/itunessd.py` — `build_header`, `encode_path`, `build_entry`, `build_itunessd`
+- Create: `src/shufflesync/device.py` — `find_shuffles`, `select_shuffle`, `ShuffleDevice`
+- Create: `src/shufflesync/downloader.py` — `check_dependencies`, `download_playlist`
+- Create: `src/shufflesync/sync.py` — `mirror_sync`
+- Create: `src/shufflesync/cli.py` — `main`
 - Create: `tests/test_itunessd.py`, `tests/test_device.py`, `tests/test_downloader.py`, `tests/test_sync.py`
 - Existing: `tests/fixtures/golden_device/iTunes/iTunesSD` (golden fixture, already committed)
 - Create: `README.md`
@@ -56,7 +56,7 @@ Confirmed against `tests/fixtures/golden_device/iTunes/iTunesSD` (11 tracks, 615
 
 **Files:**
 - Create: `pyproject.toml`
-- Create: `src/spotishuffle/__init__.py`
+- Create: `src/shufflesync/__init__.py`
 - Create: `tests/__init__.py`
 
 - [ ] **Step 1: Create `pyproject.toml`**
@@ -67,14 +67,14 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spotishuffle"
+name = "shufflesync"
 version = "0.1.0"
 description = "Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle"
 requires-python = ">=3.9"
 dependencies = ["spotdl>=4"]
 
 [project.scripts]
-spotishuffle = "spotishuffle.cli:main"
+shufflesync = "shufflesync.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
@@ -90,8 +90,8 @@ testpaths = ["tests"]
 - [ ] **Step 2: Create package + test init files**
 
 ```bash
-mkdir -p src/spotishuffle tests
-touch src/spotishuffle/__init__.py tests/__init__.py
+mkdir -p src/shufflesync tests
+touch src/shufflesync/__init__.py tests/__init__.py
 ```
 
 - [ ] **Step 3: Verify pytest collects (zero tests is fine)**
@@ -102,8 +102,8 @@ Expected: `no tests ran` (exit ok), no import/config errors.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add pyproject.toml src/spotishuffle/__init__.py tests/__init__.py
-git commit -m "chore: scaffold spotishuffle package"
+git add pyproject.toml src/shufflesync/__init__.py tests/__init__.py
+git commit -m "chore: scaffold shufflesync package"
 ```
 
 ---
@@ -111,7 +111,7 @@ git commit -m "chore: scaffold spotishuffle package"
 ## Task 2: `iTunesSD` header
 
 **Files:**
-- Create: `src/spotishuffle/itunessd.py`
+- Create: `src/shufflesync/itunessd.py`
 - Test: `tests/test_itunessd.py`
 
 - [ ] **Step 1: Write the failing test (byte-exact vs golden header)**
@@ -119,7 +119,7 @@ git commit -m "chore: scaffold spotishuffle package"
 ```python
 # tests/test_itunessd.py
 from pathlib import Path
-from spotishuffle import itunessd
+from shufflesync import itunessd
 
 GOLDEN = Path(__file__).parent / "fixtures/golden_device/iTunes/iTunesSD"
 
@@ -136,16 +136,16 @@ def test_build_header_count_is_big_endian():
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `python3 -m pytest tests/test_itunessd.py -q`
-Expected: FAIL — `AttributeError: module 'spotishuffle.itunessd' has no attribute 'build_header'`.
+Expected: FAIL — `AttributeError: module 'shufflesync.itunessd' has no attribute 'build_header'`.
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
-# src/spotishuffle/itunessd.py
+# src/shufflesync/itunessd.py
 """Serializer for the 2nd-gen iPod shuffle iTunesSD database.
 
 Format validated byte-for-byte against a real-hardware golden fixture.
-See docs/superpowers/plans/2026-06-01-spotishuffle.md for the field tables.
+See docs/superpowers/plans/2026-06-01-shufflesync.md for the field tables.
 """
 
 HEADER_CONST = bytes.fromhex("010800000012000000000000000000")  # 15 bytes
@@ -164,7 +164,7 @@ Expected: PASS (2 passed).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/itunessd.py tests/test_itunessd.py
+git add src/shufflesync/itunessd.py tests/test_itunessd.py
 git commit -m "feat: iTunesSD header serialization"
 ```
 
@@ -173,7 +173,7 @@ git commit -m "feat: iTunesSD header serialization"
 ## Task 3: `iTunesSD` path field encoding
 
 **Files:**
-- Modify: `src/spotishuffle/itunessd.py`
+- Modify: `src/shufflesync/itunessd.py`
 - Test: `tests/test_itunessd.py`
 
 - [ ] **Step 1: Write the failing test (path field byte-exact vs golden)**
@@ -212,7 +212,7 @@ Expected: FAIL — no attribute `encode_path`.
 - [ ] **Step 3: Implement**
 
 ```python
-# add to src/spotishuffle/itunessd.py
+# add to src/shufflesync/itunessd.py
 
 PATH_FIELD_LEN = 522  # 261 UTF-16 code units
 
@@ -236,7 +236,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/itunessd.py tests/test_itunessd.py
+git add src/shufflesync/itunessd.py tests/test_itunessd.py
 git commit -m "feat: iTunesSD path field encoding"
 ```
 
@@ -245,7 +245,7 @@ git commit -m "feat: iTunesSD path field encoding"
 ## Task 4: `iTunesSD` entry
 
 **Files:**
-- Modify: `src/spotishuffle/itunessd.py`
+- Modify: `src/shufflesync/itunessd.py`
 - Test: `tests/test_itunessd.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -283,7 +283,7 @@ Expected: FAIL — no attribute `build_entry`.
 - [ ] **Step 3: Implement**
 
 ```python
-# add to src/spotishuffle/itunessd.py
+# add to src/shufflesync/itunessd.py
 
 ENTRY_LEN = 558
 _FILETYPE = {"mp3": 0x01, "aac": 0x02, "wav": 0x04}
@@ -316,7 +316,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/itunessd.py tests/test_itunessd.py
+git add src/shufflesync/itunessd.py tests/test_itunessd.py
 git commit -m "feat: iTunesSD track entry serialization"
 ```
 
@@ -325,7 +325,7 @@ git commit -m "feat: iTunesSD track entry serialization"
 ## Task 5: full `iTunesSD` document
 
 **Files:**
-- Modify: `src/spotishuffle/itunessd.py`
+- Modify: `src/shufflesync/itunessd.py`
 - Test: `tests/test_itunessd.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -359,7 +359,7 @@ Expected: FAIL — no attribute `build_itunessd`.
 - [ ] **Step 3: Implement**
 
 ```python
-# add to src/spotishuffle/itunessd.py
+# add to src/shufflesync/itunessd.py
 from typing import Iterable, Tuple
 
 
@@ -381,7 +381,7 @@ Expected: PASS (all itunessd tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/itunessd.py tests/test_itunessd.py
+git add src/shufflesync/itunessd.py tests/test_itunessd.py
 git commit -m "feat: full iTunesSD document serialization"
 ```
 
@@ -390,7 +390,7 @@ git commit -m "feat: full iTunesSD document serialization"
 ## Task 6: Device manager
 
 **Files:**
-- Create: `src/spotishuffle/device.py`
+- Create: `src/shufflesync/device.py`
 - Test: `tests/test_device.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -398,7 +398,7 @@ git commit -m "feat: full iTunesSD document serialization"
 ```python
 # tests/test_device.py
 import pytest
-from spotishuffle import device
+from shufflesync import device
 
 
 def _make_ipod(tmp_path, name):
@@ -443,7 +443,7 @@ Expected: FAIL — cannot import `device` / missing attributes.
 - [ ] **Step 3: Implement**
 
 ```python
-# src/spotishuffle/device.py
+# src/shufflesync/device.py
 """Locate a mounted 2nd-gen iPod shuffle on macOS."""
 from dataclasses import dataclass
 from pathlib import Path
@@ -514,7 +514,7 @@ Expected: PASS (4 passed).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/device.py tests/test_device.py
+git add src/shufflesync/device.py tests/test_device.py
 git commit -m "feat: shuffle device detection"
 ```
 
@@ -523,7 +523,7 @@ git commit -m "feat: shuffle device detection"
 ## Task 7: Downloader (spotdl wrapper)
 
 **Files:**
-- Create: `src/spotishuffle/downloader.py`
+- Create: `src/shufflesync/downloader.py`
 - Test: `tests/test_downloader.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -531,7 +531,7 @@ git commit -m "feat: shuffle device detection"
 ```python
 # tests/test_downloader.py
 import pytest
-from spotishuffle import downloader
+from shufflesync import downloader
 
 
 def test_check_dependencies_reports_missing(monkeypatch):
@@ -574,7 +574,7 @@ Expected: FAIL — cannot import `downloader`.
 - [ ] **Step 3: Implement**
 
 ```python
-# src/spotishuffle/downloader.py
+# src/shufflesync/downloader.py
 """Download a Spotify playlist as MP3s using the external `spotdl` tool."""
 import shutil
 import subprocess
@@ -613,7 +613,7 @@ Expected: PASS (3 passed).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/downloader.py tests/test_downloader.py
+git add src/shufflesync/downloader.py tests/test_downloader.py
 git commit -m "feat: spotdl download wrapper with dependency check"
 ```
 
@@ -622,7 +622,7 @@ git commit -m "feat: spotdl download wrapper with dependency check"
 ## Task 8: Sync engine (mirror)
 
 **Files:**
-- Create: `src/spotishuffle/sync.py`
+- Create: `src/shufflesync/sync.py`
 - Test: `tests/test_sync.py`
 
 Behavior: wipe `Music/`, copy source files into `Music/F00, F01, …` (100 per folder) with generated ASCII names `T0001.mp3`…, fit to free space in order (warn + skip overflow), then write `iTunesSD`.
@@ -632,8 +632,8 @@ Behavior: wipe `Music/`, copy source files into `Music/F00, F01, …` (100 per f
 ```python
 # tests/test_sync.py
 from pathlib import Path
-from spotishuffle import sync, itunessd
-from spotishuffle.device import ShuffleDevice
+from shufflesync import sync, itunessd
+from shufflesync.device import ShuffleDevice
 
 
 def _device(tmp_path):
@@ -714,7 +714,7 @@ Expected: FAIL — cannot import `sync`.
 - [ ] **Step 3: Implement**
 
 ```python
-# src/spotishuffle/sync.py
+# src/shufflesync/sync.py
 """Mirror a list of audio files onto a shuffle: wipe, copy, write iTunesSD."""
 import shutil
 from pathlib import Path
@@ -780,7 +780,7 @@ Expected: PASS (5 passed).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/sync.py tests/test_sync.py
+git add src/shufflesync/sync.py tests/test_sync.py
 git commit -m "feat: mirror sync engine (wipe, copy, write iTunesSD)"
 ```
 
@@ -789,7 +789,7 @@ git commit -m "feat: mirror sync engine (wipe, copy, write iTunesSD)"
 ## Task 9: CLI entry point
 
 **Files:**
-- Create: `src/spotishuffle/cli.py`
+- Create: `src/shufflesync/cli.py`
 - Test: `tests/test_cli.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -797,7 +797,7 @@ git commit -m "feat: mirror sync engine (wipe, copy, write iTunesSD)"
 ```python
 # tests/test_cli.py
 from pathlib import Path
-from spotishuffle import cli
+from shufflesync import cli
 
 
 def test_main_happy_path(monkeypatch, tmp_path, capsys):
@@ -840,8 +840,8 @@ Expected: FAIL — cannot import `cli`.
 - [ ] **Step 3: Implement**
 
 ```python
-# src/spotishuffle/cli.py
-"""spotishuffle CLI: download a Spotify playlist and mirror it to a shuffle."""
+# src/shufflesync/cli.py
+"""shufflesync CLI: download a Spotify playlist and mirror it to a shuffle."""
 import argparse
 import sys
 from pathlib import Path
@@ -849,12 +849,12 @@ from typing import List, Optional
 
 from . import device, downloader, sync
 
-CACHE_DIR = Path.home() / ".spotishuffle" / "cache"
+CACHE_DIR = Path.home() / ".shufflesync" / "cache"
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="spotishuffle",
+        prog="shufflesync",
         description="Download a Spotify playlist and mirror it onto a 2nd-gen iPod shuffle.",
     )
     parser.add_argument("playlist_url", help="Spotify playlist URL")
@@ -899,8 +899,8 @@ Expected: PASS (2 passed).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/spotishuffle/cli.py tests/test_cli.py
-git commit -m "feat: spotishuffle one-command CLI"
+git add src/shufflesync/cli.py tests/test_cli.py
+git commit -m "feat: shufflesync one-command CLI"
 ```
 
 ---
@@ -920,14 +920,14 @@ Expected: PASS (all tests across the 5 modules).
 Run:
 ```bash
 python3 -m pip install -e .
-spotishuffle --help
+shufflesync --help
 ```
-Expected: argparse help text for `spotishuffle` prints; exit 0.
+Expected: argparse help text for `shufflesync` prints; exit 0.
 
 - [ ] **Step 3: Write `README.md`**
 
 ````markdown
-# spotishuffle
+# shufflesync
 
 Download a Spotify playlist and mirror it onto a 2nd-generation iPod shuffle —
 no iTunes required.
@@ -945,7 +945,7 @@ pip install -e .
 
 ## Use
 ```bash
-spotishuffle "https://open.spotify.com/playlist/<id>"
+shufflesync "https://open.spotify.com/playlist/<id>"
 ```
 It downloads the playlist, finds your mounted shuffle, **replaces** its music
 with the playlist (mirror sync), and writes the device database. Eject the
@@ -973,7 +973,7 @@ git commit -m "docs: add README"
 This is the empirical end-to-end check the unit tests can't do.
 
 - [ ] **Step 1:** Plug in the shuffle; confirm it mounts under `/Volumes`.
-- [ ] **Step 2:** Run `spotishuffle "<a small public playlist URL>"`.
+- [ ] **Step 2:** Run `shufflesync "<a small public playlist URL>"`.
 - [ ] **Step 3:** Confirm `iPod_Control/Music/F00/` contains `T0001.mp3`… and `iPod_Control/iTunes/iTunesSD` has size `18 + N*558`.
 - [ ] **Step 4:** Eject, unplug, and confirm the shuffle plays the tracks in order.
 - [ ] **Step 5:** If playback fails, capture the generated `iTunesSD`, diff structural bytes against the golden fixture, and open a fix task. (Most likely culprit: filetype byte or a flag — adjust `build_entry` and re-run Task 4 tests.)
