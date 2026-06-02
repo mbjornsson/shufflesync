@@ -45,3 +45,23 @@ def test_track_entry_to_mhit_fields():
     assert _u32(m, 0x2c) == 7                  # track number
     assert _u32(m, 0x34) == 2009               # year
     assert m[0x184:0x184 + 4] == b"mhod"
+
+
+def _entry(i):
+    return itunesdb.TrackEntry(
+        track_id=i, title=f"T{i}", artist="A", album="Al", genre="G",
+        location=f":iPod_Control:Music:F00:T{i:04d}.mp3",
+        size=1000, duration_ms=2000, bitrate=192, sample_rate=44100,
+        track_number=i, year=2009,
+    )
+
+
+def test_track_dataset_wraps_all_mhits():
+    ds = itunesdb.track_dataset([_entry(1), _entry(2)])
+    assert ds[0:4] == b"mhsd"
+    assert _u32(ds, 0x0c) == 1                 # dataset type 1 = tracks
+    assert _u32(ds, 8) == len(ds)              # total_len
+    inner = ds[96:]
+    assert inner[0:4] == b"mhlt"
+    assert _u32(inner, 8) == 2                  # track count
+    assert inner[92:96] == b"mhit"

@@ -72,3 +72,21 @@ def track_mhit(entry: "TrackEntry") -> bytes:
     h[0x38:0x3a] = struct.pack("<H", entry.bitrate)
     h[MHIT_OFFSETS["sample_rate"]:MHIT_OFFSETS["sample_rate"] + 4] = _u32(entry.sample_rate << 16)
     return bytes(h) + mhods
+
+
+def _mhsd(dataset_type: int, body: bytes) -> bytes:
+    h = bytearray(96)
+    h[0:4] = b"mhsd"
+    h[4:8] = _u32(96)
+    h[8:12] = _u32(96 + len(body))
+    h[12:16] = _u32(dataset_type)
+    return bytes(h) + body
+
+
+def track_dataset(entries: List["TrackEntry"]) -> bytes:
+    mhlt = bytearray(92)
+    mhlt[0:4] = b"mhlt"
+    mhlt[4:8] = _u32(92)
+    mhlt[8:12] = _u32(len(entries))
+    body = bytes(mhlt) + b"".join(track_mhit(e) for e in entries)
+    return _mhsd(1, body)
