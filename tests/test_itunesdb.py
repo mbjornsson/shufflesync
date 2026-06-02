@@ -65,3 +65,26 @@ def test_track_dataset_wraps_all_mhits():
     assert inner[0:4] == b"mhlt"
     assert _u32(inner, 8) == 2                  # track count
     assert inner[92:96] == b"mhit"
+
+
+def test_playlist_dataset_has_master_and_named():
+    ds = itunesdb.playlist_dataset("Evening Chill", [1, 2, 3])
+    assert ds[0:4] == b"mhsd"
+    assert _u32(ds, 0x0c) == 2                  # dataset type 2 = playlists
+    inner = ds[96:]
+    assert inner[0:4] == b"mhlp"
+    assert _u32(inner, 8) == 2                  # two playlists (master + named)
+    master = inner[92:]
+    assert master[0:4] == b"mhyp"
+    assert _u32(master, 0x10) == 3              # item count
+    assert _u32(master, 0x14) == 1             # master flag
+    assert "Evening Chill".encode("utf-16-le") in ds
+
+
+def test_playlist_item_references_track_id():
+    item = itunesdb.playlist_item(track_id=42, position=0)
+    assert item[0:4] == b"mhip"
+    assert _u32(item, 0x0c) == 1                # one child mhod
+    assert _u32(item, 0x18) == 42              # track id
+    assert item[76:80] == b"mhod"             # position mhod follows the 76-byte header
+    assert _u32(item, 8) == len(item)          # total_len includes child mhod

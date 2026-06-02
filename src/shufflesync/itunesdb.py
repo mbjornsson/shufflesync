@@ -90,3 +90,48 @@ def track_dataset(entries: List["TrackEntry"]) -> bytes:
     mhlt[8:12] = _u32(len(entries))
     body = bytes(mhlt) + b"".join(track_mhit(e) for e in entries)
     return _mhsd(1, body)
+
+
+def _position_mhod(position: int) -> bytes:
+    body = bytearray(44)
+    body[0:4] = b"mhod"
+    body[4:8] = _u32(24)        # header_len
+    body[8:12] = _u32(44)       # total_len
+    body[12:16] = _u32(100)     # type 100 = playlist item position
+    body[0x18:0x1c] = _u32(position)
+    return bytes(body)
+
+
+def playlist_item(track_id: int, position: int) -> bytes:
+    child = _position_mhod(position)
+    h = bytearray(76)
+    h[0:4] = b"mhip"
+    h[4:8] = _u32(76)
+    h[8:12] = _u32(76 + len(child))
+    h[12:16] = _u32(1)                  # mhod count
+    h[0x18:0x1c] = _u32(track_id)
+    return bytes(h) + child
+
+
+def _mhyp(name: str, track_ids: List[int], is_master: bool) -> bytes:
+    title = string_mhod(1, name)
+    items = b"".join(playlist_item(t, i) for i, t in enumerate(track_ids))
+    body = title + items
+    h = bytearray(184)
+    h[0:4] = b"mhyp"
+    h[4:8] = _u32(184)
+    h[8:12] = _u32(184 + len(body))
+    h[12:16] = _u32(1)                  # mhod count (title only)
+    h[16:20] = _u32(len(track_ids))     # item count
+    h[20:24] = _u32(1 if is_master else 0)  # master flag
+    return bytes(h) + body
+
+
+def playlist_dataset(playlist_name: str, track_ids: List[int]) -> bytes:
+    mhlp = bytearray(92)
+    mhlp[0:4] = b"mhlp"
+    mhlp[4:8] = _u32(92)
+    mhlp[8:12] = _u32(2)                # master + one named playlist
+    master = _mhyp("shufflesync", track_ids, is_master=True)
+    named = _mhyp(playlist_name, track_ids, is_master=False)
+    return _mhsd(2, bytes(mhlp) + master + named)
