@@ -48,9 +48,14 @@ def _output_args(dest: Path) -> List[str]:
     # absolute template under a hidden dir like ~/.shufflesync gets rewritten to
     # ~/shufflesync and files download to the wrong place. We run spotdl with
     # cwd=dest, so a relative template resolves into dest untouched.
+    #
+    # The name must NOT include {list-position}: it would change when the playlist
+    # is reordered, so spotdl wouldn't recognize the cached file and would
+    # re-download it. {artists} - {title} is stable across reordering. On-device
+    # ordering comes from the m3u, not the filename.
     return [
         "--output",
-        "{list-position} - {title}.{output-ext}",
+        "{artists} - {title}.{output-ext}",
         "--format",
         "mp3",
     ]
@@ -107,7 +112,10 @@ def download_playlist(
     if m3u.exists():
         m3u.unlink()
 
-    cmd = ["spotdl", "download", str(selection), "--m3u", str(m3u), *_output_args(dest)]
+    # The --m3u path MUST be relative (cwd=dest). An absolute path under the
+    # hidden ~/.shufflesync dir gets sanitized/relativized by spotdl and the m3u
+    # ends up at dest/Users/... instead of dest/run.m3u, so we'd find no tracks.
+    cmd = ["spotdl", "download", str(selection), "--m3u", "run.m3u", *_output_args(dest)]
     subprocess.run(cmd, cwd=dest, check=True)
 
     files = _read_m3u(m3u, dest)

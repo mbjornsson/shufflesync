@@ -109,6 +109,20 @@ def test_build_itunesdb_empty_playlist():
     assert _u32(db, 0x14) == 2
 
 
+def test_build_itunesdb_master_uses_device_name():
+    from shufflesync import itunesdb_reader
+    db = itunesdb.build_itunesdb([_entry(1)], "Mix", device_name="iPod Nano - Matthías")
+    master = [p for p in itunesdb_reader.parse(db).playlists if p.is_master][0]
+    assert master.name == "iPod Nano - Matthías"
+
+
+def test_build_itunesdb_default_master_name_is_ipod():
+    from shufflesync import itunesdb_reader
+    db = itunesdb.build_itunesdb([_entry(1)], "Mix")
+    master = [p for p in itunesdb_reader.parse(db).playlists if p.is_master][0]
+    assert master.name == "iPod"          # never the app name
+
+
 def test_assemblers_and_master_playlist():
     a = itunesdb.track_mhit(_entry(1))
     b = itunesdb.track_mhit(_entry(2))

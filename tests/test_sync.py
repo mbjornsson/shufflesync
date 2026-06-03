@@ -181,6 +181,35 @@ def test_add_sync_writes_backup(tmp_path):
     assert backups
 
 
+def _nano_named(tmp_path, device_name):
+    root = tmp_path / "NANO"
+    (root / "iPod_Control" / "iTunes").mkdir(parents=True)
+    (root / "iPod_Control" / "Music").mkdir(parents=True)
+    dev = device.IpodDevice(root, device.DeviceFamily.NANO_1G_3G)
+    dev.db_path.write_bytes(itunesdb.build_itunesdb([], "seed", device_name=device_name))
+    return dev
+
+
+def test_mirror_sync_nano_preserves_device_name(tmp_path):
+    dev = _nano_named(tmp_path, "iPod Nano - Matthías")
+    src = tmp_path / "src"; src.mkdir()
+    a = src / "A.mp3"; _make_mp3(a)
+    sync.mirror_sync(dev, [a], playlist_name="New")
+    db = itunesdb_reader.parse(dev.db_path.read_bytes())
+    master = [p for p in db.playlists if p.is_master][0]
+    assert master.name == "iPod Nano - Matthías"
+
+
+def test_add_sync_preserves_device_name(tmp_path):
+    dev = _nano_named(tmp_path, "iPod Nano - Matthías")
+    src = tmp_path / "src"; src.mkdir()
+    a = src / "A.mp3"; _make_mp3(a)
+    sync.add_sync(dev, [a], playlist_name="New")
+    db = itunesdb_reader.parse(dev.db_path.read_bytes())
+    master = [p for p in db.playlists if p.is_master][0]
+    assert master.name == "iPod Nano - Matthías"
+
+
 def test_add_sync_rejects_shuffle(tmp_path):
     root = tmp_path / "SH"; (root / "iPod_Control" / "iTunes").mkdir(parents=True)
     dev = device.IpodDevice(root, device.DeviceFamily.SHUFFLE_2G)

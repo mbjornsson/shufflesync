@@ -146,9 +146,13 @@ def playlist_dataset_from_records(mhyp_records) -> bytes:
     return _mhsd(2, bytes(mhlp) + b"".join(mhyp_records))
 
 
-def playlist_dataset(playlist_name: str, track_ids: List[int]) -> bytes:
+def playlist_dataset(
+    playlist_name: str, track_ids: List[int], device_name: str = "iPod"
+) -> bytes:
+    # The master playlist's name is the iPod's device name shown on the device,
+    # so it must be the real device name, never a hardcoded app name.
     return playlist_dataset_from_records([
-        master_playlist(track_ids, "shufflesync"),
+        master_playlist(track_ids, device_name),
         named_playlist(playlist_name, track_ids),
     ])
 
@@ -166,9 +170,12 @@ def _mhbd(dataset_count: int, body: bytes) -> bytes:
     return bytes(h) + body
 
 
-def build_itunesdb(entries: List["TrackEntry"], playlist_name: str) -> bytes:
+def build_itunesdb(
+    entries: List["TrackEntry"], playlist_name: str, device_name: str = "iPod"
+) -> bytes:
     """Serialize a full iTunesDB: one track dataset + one playlist dataset
-    (master playlist + a named playlist) referencing every track."""
+    (master playlist named `device_name` + a named playlist) referencing every
+    track."""
     track_ids = [e.track_id for e in entries]
-    body = track_dataset(entries) + playlist_dataset(playlist_name, track_ids)
+    body = track_dataset(entries) + playlist_dataset(playlist_name, track_ids, device_name)
     return _mhbd(2, body)

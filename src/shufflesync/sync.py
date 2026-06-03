@@ -27,6 +27,20 @@ def _device_path(folder: str, name: str, colon: bool) -> str:
     return (":" + ":".join(parts)) if colon else ("/" + "/".join(parts))
 
 
+def _existing_device_name(db_path: Path) -> str:
+    """The device name = the master playlist's name in the current iTunesDB.
+    Returned so a sync preserves it instead of overwriting the iPod's name.
+    Falls back to "iPod" when there's no readable existing database."""
+    if not db_path.exists():
+        return "iPod"
+    try:
+        parsed = itunesdb_reader.parse(db_path.read_bytes())
+    except Exception:
+        return "iPod"
+    master = next((p for p in parsed.playlists if p.is_master), None)
+    return master.name if master and master.name else "iPod"
+
+
 def mirror_sync(
     device: IpodDevice, source_files: List[Path], playlist_name: str = "shufflesync"
 ) -> int:
@@ -71,7 +85,9 @@ def mirror_sync(
                 size=m.size, duration_ms=m.duration_ms, bitrate=m.bitrate,
                 sample_rate=m.sample_rate, track_number=m.track_number, year=m.year,
             ))
-        device.db_path.write_bytes(itunesdb.build_itunesdb(entries, playlist_name))
+        device_name = _existing_device_name(device.db_path)
+        device.db_path.write_bytes(
+            itunesdb.build_itunesdb(entries, playlist_name, device_name=device_name))
 
     if skipped:
         print(f"Skipped {skipped} track(s): not enough space on device.")
@@ -162,8 +178,10 @@ def add_sync(device: IpodDevice, source_files: List[Path],
     all_ids = [t.track_id for t in kept_tracks] + new_ids
     kept_playlists = [p.raw for p in parsed.playlists
                       if not p.is_master and p.name != playlist_name]
+    existing_master = next((p for p in parsed.playlists if p.is_master), None)
+    device_name = existing_master.name if (existing_master and existing_master.name) else "iPod"
     playlist_records = (
-        [itunesdb.master_playlist(all_ids)]
+        [itunesdb.master_playlist(all_ids, device_name)]
         + kept_playlists
         + [itunesdb.named_playlist(playlist_name, new_ids)]
     )

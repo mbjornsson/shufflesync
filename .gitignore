@@ -6,3 +6,4 @@ venv/
 *.egg-info/
 device-backup-*/
 .DS_Store
+/run.m3u

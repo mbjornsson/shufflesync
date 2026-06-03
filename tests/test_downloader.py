@@ -21,8 +21,10 @@ def _fake_spotdl(save_tracks, downloaded, m3u_names):
             dest = Path(cwd)
             for name in downloaded:
                 (dest / name).write_bytes(b"x")
-            Path(cmd[cmd.index("--m3u") + 1]).write_text(
-                "#EXTM3U\n" + "\n".join(m3u_names) + "\n")
+            m3u = Path(cmd[cmd.index("--m3u") + 1])
+            if not m3u.is_absolute():           # spotdl resolves it against cwd=dest
+                m3u = dest / m3u
+            m3u.write_text("#EXTM3U\n" + "\n".join(m3u_names) + "\n")
         class R: returncode = 0
         return R()
     return run
@@ -90,7 +92,10 @@ def test_download_playlist_count_trims_selection_and_uses_m3u(monkeypatch, tmp_p
         else:
             (Path(cwd) / "01 - A.mp3").write_bytes(b"a")
             (Path(cwd) / "02 - B.mp3").write_bytes(b"b")
-            Path(cmd[cmd.index("--m3u") + 1]).write_text("01 - A.mp3\n02 - B.mp3\n")
+            m3u = Path(cmd[cmd.index("--m3u") + 1])
+            if not m3u.is_absolute():
+                m3u = Path(cwd) / m3u
+            m3u.write_text("01 - A.mp3\n02 - B.mp3\n")
         class R: returncode = 0
         return R()
 
@@ -104,6 +109,38 @@ def test_download_playlist_count_trims_selection_and_uses_m3u(monkeypatch, tmp_p
     selection = Path(download_cmd[2])
     assert json.loads(selection.read_text()) == save[:2]
     assert [f.name for f in result.files] == ["01 - A.mp3", "02 - B.mp3"]
+
+
+def test_download_uses_relative_m3u_path(monkeypatch, tmp_path):
+    """--m3u must be relative: an absolute path under ~/.shufflesync is
+    mis-written by spotdl (cwd=dest), landing the m3u in dest/Users/... so no
+    tracks are found."""
+    dest = tmp_path / "PID"
+    cmds = []
+
+    def run(cmd, cwd, check):
+        cmds.append(cmd)
+        if "save" in cmd:
+            Path(cmd[cmd.index("--save-file") + 1]).write_text(json.dumps(_save_tracks(1)))
+        else:
+            (Path(cwd) / "A.mp3").write_bytes(b"a")
+            (Path(cwd) / cmd[cmd.index("--m3u") + 1]).write_text("A.mp3\n")
+        class R: returncode = 0
+        return R()
+
+    monkeypatch.setattr(downloader.subprocess, "run", run)
+    result = downloader.download_playlist("https://open.spotify.com/playlist/abc", dest)
+    download_cmd = cmds[1]
+    assert not Path(download_cmd[download_cmd.index("--m3u") + 1]).is_absolute()
+    assert [f.name for f in result.files] == ["A.mp3"]
+
+
+def test_output_template_is_position_independent():
+    """The cache filename must not include the playlist position, or reordering
+    the playlist would change names and re-download everything."""
+    args = downloader._output_args(Path("/x"))
+    template = args[args.index("--output") + 1]
+    assert "{list-position}" not in template
 
 
 def test_download_playlist_name_falls_back_to_id(monkeypatch, tmp_path):
