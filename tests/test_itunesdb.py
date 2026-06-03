@@ -107,3 +107,17 @@ def test_build_itunesdb_empty_playlist():
     db = itunesdb.build_itunesdb([], "Empty")
     assert db[0:4] == b"mhbd"
     assert _u32(db, 0x14) == 2
+
+
+def test_assemblers_and_master_playlist():
+    a = itunesdb.track_mhit(_entry(1))
+    b = itunesdb.track_mhit(_entry(2))
+    ds = itunesdb.track_dataset_from_records([a, b])
+    assert ds[0:4] == b"mhsd" and _u32(ds, 0x0c) == 1
+    assert _u32(ds[96:], 8) == 2
+    m = itunesdb.master_playlist([1, 2])
+    assert m[0:4] == b"mhyp" and _u32(m, 0x14) == 1
+    assert _u32(m, 0x10) == 2
+    pds = itunesdb.playlist_dataset_from_records([m])
+    assert pds[0:4] == b"mhsd" and _u32(pds, 0x0c) == 2
+    assert _u32(pds[96:], 8) == 1

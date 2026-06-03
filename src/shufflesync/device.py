@@ -39,20 +39,34 @@ def _itunes_dir(root: Path) -> Path:
     return root / "iPod_Control" / "iTunes"
 
 
+# Checksummed iTunesDB devices (nano 4G+, classic, touch) store a database
+# signature in this mhbd header region; unsigned devices (nano 1-3G) leave it
+# zero. Verified all-zero on a real nano 3G. We refuse to write our unsigned DB
+# to a signed device, which would replace its music with an empty library.
+_SIGNATURE_REGION = slice(0x58, 0xA0)
+
+
+def _itunesdb_is_signed(mhbd_header: bytes) -> bool:
+    return any(mhbd_header[_SIGNATURE_REGION])
+
+
 def detect_family(root: Path) -> Optional[DeviceFamily]:
     """Classify a mounted iPod by its on-disk database.
 
-    iTunesSD -> shuffle 2G. A valid iTunesDB (mhbd magic) -> nano 1-3G. Anything
-    else -> None (unsupported). NOTE: this does not distinguish a nano 1-3G from
-    a checksummed iTunesDB device (nano 4G+, classic, touch); writing our
-    unsigned DB to those yields an empty library. This limitation is documented.
+    iTunesSD -> shuffle 2G. An *unsigned* iTunesDB (mhbd magic, empty signature
+    region) -> nano 1-3G. A signed iTunesDB (nano 4G+, classic, touch) or
+    anything else -> None (unsupported), so we never wipe a device whose DB we
+    cannot validly write.
     """
     itunes = _itunes_dir(root)
     if (itunes / "iTunesSD").exists():
         return DeviceFamily.SHUFFLE_2G
     db = itunes / "iTunesDB"
-    if db.exists() and db.read_bytes()[:4] == b"mhbd":
-        return DeviceFamily.NANO_1G_3G
+    if db.exists():
+        head = db.read_bytes()[:244]
+        if head[0:4] == b"mhbd" and len(head) >= _SIGNATURE_REGION.stop:
+            if not _itunesdb_is_signed(head):
+                return DeviceFamily.NANO_1G_3G
     return None
 
 

@@ -83,13 +83,16 @@ def _mhsd(dataset_type: int, body: bytes) -> bytes:
     return bytes(h) + body
 
 
-def track_dataset(entries: List["TrackEntry"]) -> bytes:
+def track_dataset_from_records(mhit_records) -> bytes:
     mhlt = bytearray(92)
     mhlt[0:4] = b"mhlt"
     mhlt[4:8] = _u32(92)
-    mhlt[8:12] = _u32(len(entries))
-    body = bytes(mhlt) + b"".join(track_mhit(e) for e in entries)
-    return _mhsd(1, body)
+    mhlt[8:12] = _u32(len(mhit_records))
+    return _mhsd(1, bytes(mhlt) + b"".join(mhit_records))
+
+
+def track_dataset(entries: List["TrackEntry"]) -> bytes:
+    return track_dataset_from_records([track_mhit(e) for e in entries])
 
 
 def _position_mhod(position: int) -> bytes:
@@ -127,14 +130,27 @@ def _mhyp(name: str, track_ids: List[int], is_master: bool) -> bytes:
     return bytes(h) + body
 
 
-def playlist_dataset(playlist_name: str, track_ids: List[int]) -> bytes:
+def master_playlist(track_ids: List[int], name: str = "iPod") -> bytes:
+    return _mhyp(name, track_ids, is_master=True)
+
+
+def named_playlist(name: str, track_ids: List[int]) -> bytes:
+    return _mhyp(name, track_ids, is_master=False)
+
+
+def playlist_dataset_from_records(mhyp_records) -> bytes:
     mhlp = bytearray(92)
     mhlp[0:4] = b"mhlp"
     mhlp[4:8] = _u32(92)
-    mhlp[8:12] = _u32(2)                # master + one named playlist
-    master = _mhyp("shufflesync", track_ids, is_master=True)
-    named = _mhyp(playlist_name, track_ids, is_master=False)
-    return _mhsd(2, bytes(mhlp) + master + named)
+    mhlp[8:12] = _u32(len(mhyp_records))
+    return _mhsd(2, bytes(mhlp) + b"".join(mhyp_records))
+
+
+def playlist_dataset(playlist_name: str, track_ids: List[int]) -> bytes:
+    return playlist_dataset_from_records([
+        master_playlist(track_ids, "shufflesync"),
+        named_playlist(playlist_name, track_ids),
+    ])
 
 
 def _mhbd(dataset_count: int, body: bytes) -> bytes:
