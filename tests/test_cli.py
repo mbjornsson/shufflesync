@@ -10,7 +10,7 @@ def test_main_happy_path(monkeypatch, tmp_path, capsys):
 
     def fake_download(url, dest, count=None, randomize=False):
         events.append(("download", url, count, randomize))
-        return fake_files
+        return cli.downloader.DownloadResult(fake_files, "Evening Chill")
     monkeypatch.setattr(cli.downloader, "download_playlist", fake_download)
 
     class FakeDevice:
@@ -18,14 +18,15 @@ def test_main_happy_path(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli.device, "select_ipod", lambda: FakeDevice())
 
     def fake_sync(dev, files, playlist_name="shufflesync"):
-        events.append(("sync", len(files)))
+        events.append(("sync", len(files), playlist_name))
         return len(files)
     monkeypatch.setattr(cli.sync, "mirror_sync", fake_sync)
 
     rc = cli.main(["https://open.spotify.com/playlist/abc"])
     assert rc == 0
     assert ("download", "https://open.spotify.com/playlist/abc", None, False) in events
-    assert ("sync", 1) in events
+    # the real playlist name (not the URL id) is passed to sync
+    assert ("sync", 1, "Evening Chill") in events
 
 
 def test_main_passes_count_and_random_flags(monkeypatch, tmp_path):
@@ -36,7 +37,7 @@ def test_main_passes_count_and_random_flags(monkeypatch, tmp_path):
     def fake_download(url, dest, count=None, randomize=False):
         captured["count"] = count
         captured["randomize"] = randomize
-        return [tmp_path / "a.mp3"]
+        return cli.downloader.DownloadResult([tmp_path / "a.mp3"], "Mix")
     monkeypatch.setattr(cli.downloader, "download_playlist", fake_download)
 
     class FakeDevice:
@@ -95,7 +96,7 @@ def test_main_missing_deps_errors(monkeypatch):
 def test_main_add_flag_calls_add_sync(monkeypatch, tmp_path):
     monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
     monkeypatch.setattr(cli.downloader, "download_playlist",
-                        lambda *a, **k: [tmp_path / "a.mp3"])
+                        lambda *a, **k: cli.downloader.DownloadResult([tmp_path / "a.mp3"], "Mix"))
     class Dev:
         root = tmp_path
         family = cli.device.DeviceFamily.NANO_1G_3G
@@ -113,7 +114,7 @@ def test_main_add_flag_calls_add_sync(monkeypatch, tmp_path):
 def test_main_add_rejected_for_shuffle(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
     monkeypatch.setattr(cli.downloader, "download_playlist",
-                        lambda *a, **k: [tmp_path / "a.mp3"])
+                        lambda *a, **k: cli.downloader.DownloadResult([tmp_path / "a.mp3"], "Mix"))
     class Dev:
         root = tmp_path
         family = cli.device.DeviceFamily.SHUFFLE_2G

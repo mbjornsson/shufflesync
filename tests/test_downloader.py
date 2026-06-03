@@ -1,8 +1,31 @@
+import json
 import random
 from pathlib import Path
 
 import pytest
 from shufflesync import downloader
+
+
+def _save_tracks(n, list_name="My Mix"):
+    return [{"name": f"Song {i}", "url": f"https://track/{i}", "list_name": list_name,
+             "list_position": i + 1, "list_length": n} for i in range(n)]
+
+
+def _fake_spotdl(save_tracks, downloaded, m3u_names):
+    """Fake subprocess.run: `save` writes the save file; `download` creates the
+    given mp3s and writes an m3u listing m3u_names (relative to cwd=dest)."""
+    def run(cmd, cwd, check):
+        if "save" in cmd:
+            Path(cmd[cmd.index("--save-file") + 1]).write_text(json.dumps(save_tracks))
+        else:
+            dest = Path(cwd)
+            for name in downloaded:
+                (dest / name).write_bytes(b"x")
+            Path(cmd[cmd.index("--m3u") + 1]).write_text(
+                "#EXTM3U\n" + "\n".join(m3u_names) + "\n")
+        class R: returncode = 0
+        return R()
+    return run
 
 
 def test_check_dependencies_reports_missing(monkeypatch):
@@ -16,90 +39,80 @@ def test_check_dependencies_all_present(monkeypatch):
     assert downloader.check_dependencies() == []
 
 
-def test_download_playlist_invokes_spotdl_and_returns_mp3s(monkeypatch, tmp_path):
-    calls = {}
-
-    def fake_run(cmd, cwd, check):
-        calls["cmd"] = cmd
-        calls["cwd"] = cwd
-        (tmp_path / "01 - Song A.mp3").write_bytes(b"a")
-        (tmp_path / "02 - Song B.mp3").write_bytes(b"b")
-        (tmp_path / "cover.jpg").write_bytes(b"x")
-        class R: returncode = 0
-        return R()
-
-    monkeypatch.setattr(downloader.subprocess, "run", fake_run)
-    files = downloader.download_playlist("https://open.spotify.com/playlist/abc", tmp_path)
-    assert calls["cmd"][0] == "spotdl"
-    assert "https://open.spotify.com/playlist/abc" in calls["cmd"]
-    assert "--output" in calls["cmd"]
-    assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
+def test_download_playlist_returns_files_and_real_name(monkeypatch, tmp_path):
+    dest = tmp_path / "PID"
+    monkeypatch.setattr(downloader.subprocess, "run", _fake_spotdl(
+        _save_tracks(2, list_name="Evening Chill"),
+        downloaded=["01 - A.mp3", "02 - B.mp3"],
+        m3u_names=["01 - A.mp3", "02 - B.mp3"]))
+    result = downloader.download_playlist("https://open.spotify.com/playlist/abc", dest)
+    assert [f.name for f in result.files] == ["01 - A.mp3", "02 - B.mp3"]
+    assert result.playlist_name == "Evening Chill"
 
 
-def test_download_playlist_with_count_saves_selects_then_downloads(monkeypatch, tmp_path):
-    import json
+def test_download_playlist_reuses_cached_files_no_wipe(monkeypatch, tmp_path):
+    """Incremental: a previously-downloaded file is not wiped; spotdl skips it
+    and only new tracks download. The m3u lists the full current selection."""
+    dest = tmp_path / "PID"
+    dest.mkdir()
+    (dest / "01 - A.mp3").write_bytes(b"cached")          # from a previous run
+    monkeypatch.setattr(downloader.subprocess, "run", _fake_spotdl(
+        _save_tracks(2),
+        downloaded=["02 - B.mp3"],                        # only the new one
+        m3u_names=["01 - A.mp3", "02 - B.mp3"]))
+    result = downloader.download_playlist("https://open.spotify.com/playlist/abc", dest)
+    assert (dest / "01 - A.mp3").read_bytes() == b"cached"  # not re-downloaded
+    assert {f.name for f in result.files} == {"01 - A.mp3", "02 - B.mp3"}
 
+
+def test_download_playlist_prunes_orphans(monkeypatch, tmp_path):
+    """A cached file not in this run's m3u (e.g. playlist shrank) is pruned and
+    not returned."""
+    dest = tmp_path / "PID"
+    dest.mkdir()
+    (dest / "99 - Stale.mp3").write_bytes(b"old")
+    monkeypatch.setattr(downloader.subprocess, "run", _fake_spotdl(
+        _save_tracks(1), downloaded=["01 - New.mp3"], m3u_names=["01 - New.mp3"]))
+    result = downloader.download_playlist("https://open.spotify.com/playlist/abc", dest)
+    assert [f.name for f in result.files] == ["01 - New.mp3"]
+    assert not (dest / "99 - Stale.mp3").exists()
+
+
+def test_download_playlist_count_trims_selection_and_uses_m3u(monkeypatch, tmp_path):
+    dest = tmp_path / "PID"
     cmds = []
+    save = _save_tracks(5)
 
-    def fake_run(cmd, cwd, check):
+    def run(cmd, cwd, check):
         cmds.append(cmd)
         if "save" in cmd:
-            save_file = Path(cmd[cmd.index("--save-file") + 1])
-            save_file.write_text(json.dumps(_tracks(5)))
-        else:  # download
-            (tmp_path / "01 - Song A.mp3").write_bytes(b"a")
-            (tmp_path / "02 - Song B.mp3").write_bytes(b"b")
+            Path(cmd[cmd.index("--save-file") + 1]).write_text(json.dumps(save))
+        else:
+            (Path(cwd) / "01 - A.mp3").write_bytes(b"a")
+            (Path(cwd) / "02 - B.mp3").write_bytes(b"b")
+            Path(cmd[cmd.index("--m3u") + 1]).write_text("01 - A.mp3\n02 - B.mp3\n")
         class R: returncode = 0
         return R()
 
-    monkeypatch.setattr(downloader.subprocess, "run", fake_run)
-    files = downloader.download_playlist(
-        "https://open.spotify.com/playlist/abc", tmp_path, count=2, randomize=False
-    )
-
+    monkeypatch.setattr(downloader.subprocess, "run", run)
+    result = downloader.download_playlist(
+        "https://open.spotify.com/playlist/abc", dest, count=2)
     save_cmd, download_cmd = cmds
     assert save_cmd[:2] == ["spotdl", "save"]
     assert download_cmd[:2] == ["spotdl", "download"]
-    # download runs against the trimmed save file holding exactly 2 tracks
-    trimmed = Path(download_cmd[2])
-    assert json.loads(trimmed.read_text()) == _tracks(5)[:2]
-    assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
+    assert "--m3u" in download_cmd
+    selection = Path(download_cmd[2])
+    assert json.loads(selection.read_text()) == save[:2]
+    assert [f.name for f in result.files] == ["01 - A.mp3", "02 - B.mp3"]
 
 
-def test_download_playlist_clears_stale_files_from_previous_run(monkeypatch, tmp_path):
-    """A previous, larger run's MP3s must not leak into this run's result, or a
-    later `--count N` would sync more than N tracks."""
-    dest = tmp_path / "cache"
-    dest.mkdir()
-    (dest / "99 - Old Track.mp3").write_bytes(b"old")
-
-    def fake_run(cmd, cwd, check):
-        (dest / "01 - New Track.mp3").write_bytes(b"new")
-        class R: returncode = 0
-        return R()
-
-    monkeypatch.setattr(downloader.subprocess, "run", fake_run)
-    files = downloader.download_playlist("https://open.spotify.com/playlist/abc", dest)
-    assert [f.name for f in files] == ["01 - New Track.mp3"]
-
-
-def test_download_passes_url_as_query_without_separator(monkeypatch, tmp_path):
-    """The playlist URL is the download query. spotdl does NOT support a `--`
-    end-of-options separator (it errors on it), so we must not emit one."""
-    calls = {}
-
-    def fake_run(cmd, cwd, check):
-        calls["cmd"] = cmd
-        (tmp_path / "01 - Song A.mp3").write_bytes(b"a")
-        class R: returncode = 0
-        return R()
-
-    monkeypatch.setattr(downloader.subprocess, "run", fake_run)
-    url = "https://open.spotify.com/playlist/abc"
-    downloader.download_playlist(url, tmp_path)
-    cmd = calls["cmd"]
-    assert "--" not in cmd                 # spotdl rejects the separator
-    assert cmd[:3] == ["spotdl", "download", url]
+def test_download_playlist_name_falls_back_to_id(monkeypatch, tmp_path):
+    dest = tmp_path / "37i9PID"
+    untagged = [{"name": "x", "url": "u"}]                # no list_name
+    monkeypatch.setattr(downloader.subprocess, "run", _fake_spotdl(
+        untagged, downloaded=["01 - x.mp3"], m3u_names=["01 - x.mp3"]))
+    result = downloader.download_playlist("https://open.spotify.com/playlist/37i9PID", dest)
+    assert result.playlist_name == "37i9PID"
 
 
 def test_download_rejects_option_like_url(monkeypatch, tmp_path):

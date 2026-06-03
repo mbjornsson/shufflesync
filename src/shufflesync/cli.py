@@ -68,7 +68,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print(f"Downloading playlist into {dest} ...")
     try:
-        files = downloader.download_playlist(
+        result = downloader.download_playlist(
             args.playlist_url, dest, count=args.count, randomize=args.randomize
         )
     except FileNotFoundError as e:
@@ -80,6 +80,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             file=sys.stderr,
         )
         return 1
+    files = result.files
     if not files:
         print("No tracks were downloaded.", file=sys.stderr)
         return 1
@@ -90,7 +91,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(str(e), file=sys.stderr)
         return 1
 
-    playlist_name = playlist_id  # best-effort; spotdl save names are not exposed here
+    playlist_name = result.playlist_name or playlist_id
     print(f"Syncing {len(files)} track(s) to {dev.root} ...")
     if args.add:
         if dev.family == device.DeviceFamily.SHUFFLE_2G:
