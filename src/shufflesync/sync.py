@@ -41,6 +41,19 @@ def _existing_device_name(db_path: Path) -> str:
     return master.name if master and master.name else "iPod"
 
 
+def existing_content(device: IpodDevice) -> "tuple[int, int]":
+    """(track_count, non-master playlist_count) currently on the device; (0, 0)
+    if there is no readable database. Used to warn before a --wipe."""
+    if not device.db_path.exists():
+        return (0, 0)
+    try:
+        parsed = itunesdb_reader.parse(device.db_path.read_bytes())
+    except Exception:
+        return (0, 0)
+    playlists = [p for p in parsed.playlists if not p.is_master]
+    return (len(parsed.tracks), len(playlists))
+
+
 def mirror_sync(
     device: IpodDevice, source_files: List[Path], playlist_name: str = "shufflesync"
 ) -> int:

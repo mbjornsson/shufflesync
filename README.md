@@ -50,9 +50,12 @@ Prefer a bare `shufflesync`? Activate the venv once per terminal with
 ```bash
 shufflesync "https://open.spotify.com/playlist/<id>"
 ```
-It downloads the playlist, finds your mounted iPod, **replaces** its music
-with the playlist (mirror sync), and writes the device database. Eject the
-iPod before unplugging.
+It downloads the playlist, finds your mounted iPod, syncs it, and writes the
+device database. Eject the iPod before unplugging. What "sync" means depends on
+the device:
+- **iPod nano:** the playlist is **added**, keeping your existing music (see
+  below). Use `--wipe` to erase everything instead.
+- **iPod shuffle:** always a full **replace** (it has no on-device library).
 
 ### Limiting how many tracks
 By default the whole playlist is downloaded. To download only some of it:
@@ -66,20 +69,28 @@ uv run shufflesync "https://open.spotify.com/playlist/<id>" --count 25 --random
 ```
 If `--count` is larger than the playlist, the whole playlist is downloaded.
 
-### Adding to the nano without erasing (`--add`)
-By default a sync **replaces** everything on the device. On the **iPod nano**
-you can instead *add* a playlist while keeping your existing music:
+### iPod nano: add by default, `--wipe` to reset
+On the **iPod nano**, a sync **adds** the playlist and keeps your existing music
+— so you can build up several playlists over time, and forgetting a flag never
+erases your library:
 ```bash
-uv run shufflesync "https://open.spotify.com/playlist/<id>" --add
+uv run shufflesync "https://open.spotify.com/playlist/<id>"          # adds it
 ```
-This preserves your existing library and adds the playlist as its own entry
-under Playlists. It is **idempotent per playlist**: running `--add` again for the
-same playlist refreshes it (removing the tracks the previous run added) instead
-of piling up duplicates, and different playlists accumulate independently.
+The playlist appears as its own entry under Playlists. Adding is **idempotent
+per playlist**: re-running the same playlist refreshes it (removing the tracks
+that run added) instead of piling up duplicates; different playlists accumulate
+independently. `--add` is accepted as an explicit form of this default.
+
+To wipe the nano and leave only this playlist, use `--wipe` (you'll be asked to
+confirm if the nano isn't empty):
+```bash
+uv run shufflesync "https://open.spotify.com/playlist/<id>" --wipe    # erases all, then adds
+```
 
 Before each `--add`, the current database is backed up on the device under
-`iPod_Control/iTunes/shufflesync-backup/<timestamp>/`. `--add` is nano-only —
-the shuffle is always a full mirror.
+`iPod_Control/iTunes/shufflesync-backup/<timestamp>/`; `--wipe` instead asks you
+to confirm before erasing. (The shuffle is always a full replace; `--add` and
+`--wipe` don't apply to it.)
 
 ## Develop
 ```bash

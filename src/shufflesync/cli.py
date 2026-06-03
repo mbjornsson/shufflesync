@@ -41,12 +41,22 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument(
         "--add", action="store_true",
-        help="Add this playlist to the iPod without erasing existing music (iPod nano only).",
+        help="Add this playlist to the iPod nano, keeping existing music "
+             "(this is the default for the nano).",
+    )
+    parser.add_argument(
+        "--wipe", action="store_true",
+        help="Erase ALL music and playlists on the iPod nano and replace them "
+             "with just this playlist. (The shuffle is always fully replaced.)",
     )
     args = parser.parse_args(argv)
 
     if args.count is not None and args.count <= 0:
         print("--count must be a positive number.", file=sys.stderr)
+        return 1
+
+    if args.add and args.wipe:
+        print("Use either --add or --wipe, not both.", file=sys.stderr)
         return 1
 
     missing = downloader.check_dependencies()
@@ -92,15 +102,32 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     playlist_name = result.playlist_name or playlist_id
-    print(f"Syncing {len(files)} track(s) to {dev.root} ...")
-    if args.add:
-        if dev.family == device.DeviceFamily.SHUFFLE_2G:
-            print("--add is only for the iPod nano; the shuffle is always a full mirror.",
-                  file=sys.stderr)
-            return 1
-        synced = sync.add_sync(dev, files, playlist_name=playlist_name)
-    else:
+    is_shuffle = dev.family == device.DeviceFamily.SHUFFLE_2G
+    if args.add and is_shuffle:
+        print("--add is only for the iPod nano; the shuffle is always replaced.",
+              file=sys.stderr)
+        return 1
+
+    # The nano keeps existing music by default; only --wipe replaces everything.
+    # The shuffle has no library, so it is always a full replace.
+    wipe = is_shuffle or args.wipe
+    if wipe and not is_shuffle:
+        tracks, playlists = sync.existing_content(dev)
+        if tracks and sys.stdin.isatty():
+            answer = input(
+                f"--wipe will erase all {tracks} track(s) and {playlists} "
+                "playlist(s) on the iPod. Continue? [y/N] ")
+            if answer.strip().lower() not in ("y", "yes"):
+                print("Aborted.", file=sys.stderr)
+                return 1
+
+    if wipe:
+        print(f"Replacing everything on {dev.root} with {len(files)} track(s) ...")
         synced = sync.mirror_sync(dev, files, playlist_name=playlist_name)
+    else:
+        print(f'Adding "{playlist_name}" to {dev.root} '
+              f"({len(files)} track(s); existing music kept) ...")
+        synced = sync.add_sync(dev, files, playlist_name=playlist_name)
     print(f"Done. {synced} track(s) on the iPod. Eject before unplugging.")
     return 0
 

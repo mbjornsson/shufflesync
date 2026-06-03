@@ -15,6 +15,7 @@ def test_main_happy_path(monkeypatch, tmp_path, capsys):
 
     class FakeDevice:
         root = tmp_path
+        family = cli.device.DeviceFamily.SHUFFLE_2G   # shuffle => full replace
     monkeypatch.setattr(cli.device, "select_ipod", lambda: FakeDevice())
 
     def fake_sync(dev, files, playlist_name="shufflesync"):
@@ -42,6 +43,7 @@ def test_main_passes_count_and_random_flags(monkeypatch, tmp_path):
 
     class FakeDevice:
         root = tmp_path
+        family = cli.device.DeviceFamily.SHUFFLE_2G
     monkeypatch.setattr(cli.device, "select_ipod", lambda: FakeDevice())
     monkeypatch.setattr(cli.sync, "mirror_sync", lambda dev, files, playlist_name=None: len(files))
 
@@ -122,3 +124,52 @@ def test_main_add_rejected_for_shuffle(monkeypatch, tmp_path, capsys):
     rc = cli.main(["https://open.spotify.com/playlist/abc", "--add"])
     assert rc == 1
     assert "shuffle" in capsys.readouterr().err.lower()
+
+
+def _nano_cli(monkeypatch, tmp_path, called):
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+    monkeypatch.setattr(cli.downloader, "download_playlist",
+                        lambda *a, **k: cli.downloader.DownloadResult([tmp_path / "a.mp3"], "Mix"))
+    class Dev:
+        root = tmp_path
+        family = cli.device.DeviceFamily.NANO_1G_3G
+    monkeypatch.setattr(cli.device, "select_ipod", lambda: Dev())
+    monkeypatch.setattr(cli.sync, "add_sync",
+                        lambda dev, files, playlist_name: called.setdefault("add", True) or 1)
+    monkeypatch.setattr(cli.sync, "mirror_sync",
+                        lambda dev, files, playlist_name=None: called.setdefault("mirror", True) or 1)
+
+
+def test_main_nano_default_is_add(monkeypatch, tmp_path):
+    called = {}
+    _nano_cli(monkeypatch, tmp_path, called)
+    rc = cli.main(["https://open.spotify.com/playlist/abc"])  # no flags
+    assert rc == 0
+    assert called == {"add": True}                            # not mirror
+
+
+def test_main_nano_wipe_calls_mirror(monkeypatch, tmp_path):
+    called = {}
+    _nano_cli(monkeypatch, tmp_path, called)
+    monkeypatch.setattr(cli.sync, "existing_content", lambda dev: (0, 0))  # empty: no prompt
+    rc = cli.main(["https://open.spotify.com/playlist/abc", "--wipe"])
+    assert rc == 0
+    assert called == {"mirror": True}
+
+
+def test_main_nano_wipe_decline_aborts(monkeypatch, tmp_path):
+    called = {}
+    _nano_cli(monkeypatch, tmp_path, called)
+    monkeypatch.setattr(cli.sync, "existing_content", lambda dev: (12, 3))   # non-empty
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "n")
+    rc = cli.main(["https://open.spotify.com/playlist/abc", "--wipe"])
+    assert rc == 1
+    assert called == {}                                       # nothing synced
+
+
+def test_main_add_and_wipe_conflict(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+    rc = cli.main(["https://open.spotify.com/playlist/abc", "--add", "--wipe"])
+    assert rc == 1
+    assert "both" in capsys.readouterr().err.lower()
