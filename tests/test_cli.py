@@ -90,3 +90,34 @@ def test_main_missing_deps_errors(monkeypatch):
     monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: ["spotdl"])
     rc = cli.main(["https://open.spotify.com/playlist/abc"])
     assert rc == 1
+
+
+def test_main_add_flag_calls_add_sync(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+    monkeypatch.setattr(cli.downloader, "download_playlist",
+                        lambda *a, **k: [tmp_path / "a.mp3"])
+    class Dev:
+        root = tmp_path
+        family = cli.device.DeviceFamily.NANO_1G_3G
+    monkeypatch.setattr(cli.device, "select_ipod", lambda: Dev())
+    called = {}
+    monkeypatch.setattr(cli.sync, "add_sync",
+                        lambda dev, files, playlist_name: called.setdefault("add", True) or len(files))
+    monkeypatch.setattr(cli.sync, "mirror_sync",
+                        lambda *a, **k: called.setdefault("mirror", True) or 0)
+    rc = cli.main(["https://open.spotify.com/playlist/abc", "--add"])
+    assert rc == 0
+    assert called == {"add": True}
+
+
+def test_main_add_rejected_for_shuffle(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(cli.downloader, "check_dependencies", lambda: [])
+    monkeypatch.setattr(cli.downloader, "download_playlist",
+                        lambda *a, **k: [tmp_path / "a.mp3"])
+    class Dev:
+        root = tmp_path
+        family = cli.device.DeviceFamily.SHUFFLE_2G
+    monkeypatch.setattr(cli.device, "select_ipod", lambda: Dev())
+    rc = cli.main(["https://open.spotify.com/playlist/abc", "--add"])
+    assert rc == 1
+    assert "shuffle" in capsys.readouterr().err.lower()

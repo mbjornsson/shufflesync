@@ -39,6 +39,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         action="store_true",
         help="With --count, pick the tracks at random instead of the first N.",
     )
+    parser.add_argument(
+        "--add", action="store_true",
+        help="Add this playlist to the iPod without erasing existing music (iPod nano only).",
+    )
     args = parser.parse_args(argv)
 
     if args.count is not None and args.count <= 0:
@@ -88,7 +92,14 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     playlist_name = playlist_id  # best-effort; spotdl save names are not exposed here
     print(f"Syncing {len(files)} track(s) to {dev.root} ...")
-    synced = sync.mirror_sync(dev, files, playlist_name=playlist_name)
+    if args.add:
+        if dev.family == device.DeviceFamily.SHUFFLE_2G:
+            print("--add is only for the iPod nano; the shuffle is always a full mirror.",
+                  file=sys.stderr)
+            return 1
+        synced = sync.add_sync(dev, files, playlist_name=playlist_name)
+    else:
+        synced = sync.mirror_sync(dev, files, playlist_name=playlist_name)
     print(f"Done. {synced} track(s) on the iPod. Eject before unplugging.")
     return 0
 
