@@ -60,9 +60,8 @@ def test_download_playlist_with_count_saves_selects_then_downloads(monkeypatch, 
     save_cmd, download_cmd = cmds
     assert save_cmd[:2] == ["spotdl", "save"]
     assert download_cmd[:2] == ["spotdl", "download"]
-    # download runs against the trimmed save file holding exactly 2 tracks,
-    # passed after the `--` end-of-options separator
-    trimmed = Path(download_cmd[download_cmd.index("--") + 1])
+    # download runs against the trimmed save file holding exactly 2 tracks
+    trimmed = Path(download_cmd[2])
     assert json.loads(trimmed.read_text()) == _tracks(5)[:2]
     assert [f.name for f in files] == ["01 - Song A.mp3", "02 - Song B.mp3"]
 
@@ -84,9 +83,9 @@ def test_download_playlist_clears_stale_files_from_previous_run(monkeypatch, tmp
     assert [f.name for f in files] == ["01 - New Track.mp3"]
 
 
-def test_download_passes_url_after_end_of_options_separator(monkeypatch, tmp_path):
-    """The playlist URL goes after `--` so a leading-dash string can't be
-    interpreted by spotdl as an option (argument injection)."""
+def test_download_passes_url_as_query_without_separator(monkeypatch, tmp_path):
+    """The playlist URL is the download query. spotdl does NOT support a `--`
+    end-of-options separator (it errors on it), so we must not emit one."""
     calls = {}
 
     def fake_run(cmd, cwd, check):
@@ -99,8 +98,17 @@ def test_download_passes_url_after_end_of_options_separator(monkeypatch, tmp_pat
     url = "https://open.spotify.com/playlist/abc"
     downloader.download_playlist(url, tmp_path)
     cmd = calls["cmd"]
-    assert "--" in cmd
-    assert cmd[cmd.index("--") + 1] == url
+    assert "--" not in cmd                 # spotdl rejects the separator
+    assert cmd[:3] == ["spotdl", "download", url]
+
+
+def test_download_rejects_option_like_url(monkeypatch, tmp_path):
+    """A URL that looks like a flag is rejected rather than passed to spotdl
+    (argument-injection guard, replacing the unsupported `--` separator)."""
+    monkeypatch.setattr(downloader.subprocess, "run",
+                        lambda *a, **k: pytest.fail("spotdl should not be called"))
+    with pytest.raises(ValueError):
+        downloader.download_playlist("--delete-everything", tmp_path)
 
 
 def test_output_template_survives_spotdl_path_sanitization(tmp_path):

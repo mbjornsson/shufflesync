@@ -27,6 +27,14 @@ def check_dependencies() -> List[str]:
     return [name for name in REQUIRED if shutil.which(name) is None]
 
 
+def _reject_option_like(value: str) -> None:
+    """Guard against argument injection. spotdl does not support a `--`
+    end-of-options separator (it errors on it), so we instead refuse a query
+    that would be parsed as an option."""
+    if value.startswith("-"):
+        raise ValueError(f"refusing option-like argument for spotdl: {value!r}")
+
+
 def _output_args(dest: Path) -> List[str]:
     # Keep this template RELATIVE. spotdl sanitizes the --output path and strips
     # leading dots from every path component (formatter.create_path_object), so an
@@ -56,6 +64,7 @@ def download_playlist(
     `dest` is emptied first so the returned files are exactly this run's
     download — otherwise MP3s from a previous (e.g. larger) run would leak in.
     """
+    _reject_option_like(playlist_url)
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
@@ -69,15 +78,15 @@ def download_playlist(
         trimmed.write_text(json.dumps(selected))
         query = str(trimmed)
 
-    # `--` ends option parsing so a leading-dash query can't be read as a flag.
-    cmd = ["spotdl", "download", *_output_args(dest), "--", query]
+    cmd = ["spotdl", "download", query, *_output_args(dest)]
     subprocess.run(cmd, cwd=dest, check=True)
     return sorted(dest.glob("*.mp3"))
 
 
 def fetch_track_list(playlist_url: str, dest: Path) -> List[dict]:
     """Run `spotdl save` to fetch playlist metadata without downloading audio."""
+    _reject_option_like(playlist_url)
     save_file = dest / "playlist.spotdl"
-    cmd = ["spotdl", "save", "--save-file", str(save_file), "--", playlist_url]
+    cmd = ["spotdl", "save", playlist_url, "--save-file", str(save_file)]
     subprocess.run(cmd, cwd=dest, check=True)
     return json.loads(save_file.read_text())
