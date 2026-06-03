@@ -66,6 +66,21 @@ uv run shufflesync "https://open.spotify.com/playlist/<id>" --count 25 --random
 ```
 If `--count` is larger than the playlist, the whole playlist is downloaded.
 
+### Adding to the nano without erasing (`--add`)
+By default a sync **replaces** everything on the device. On the **iPod nano**
+you can instead *add* a playlist while keeping your existing music:
+```bash
+uv run shufflesync "https://open.spotify.com/playlist/<id>" --add
+```
+This preserves your existing library and adds the playlist as its own entry
+under Playlists. It is **idempotent per playlist**: running `--add` again for the
+same playlist refreshes it (removing the tracks the previous run added) instead
+of piling up duplicates, and different playlists accumulate independently.
+
+Before each `--add`, the current database is backed up on the device under
+`iPod_Control/iTunes/shufflesync-backup/<timestamp>/`. `--add` is nano-only —
+the shuffle is always a full mirror.
+
 ## Develop
 ```bash
 uv sync --extra dev   # install test dependencies
