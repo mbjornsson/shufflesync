@@ -187,3 +187,46 @@ def test_add_sync_rejects_shuffle(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         sync.add_sync(dev, [], playlist_name="X")
+
+
+def test_add_sync_refresh_deletes_old_files_no_orphans(tmp_path):
+    dev = _nano_with_library(tmp_path)
+    src = tmp_path / "src"; src.mkdir()
+    a = src / "01 A.mp3"; _make_mp3(a)
+    b = src / "02 B.mp3"; _make_mp3(b)
+    f90 = dev.music_dir / "F90"
+    sync.add_sync(dev, [a, b], playlist_name="Evening")
+    assert len(list(f90.glob("*.mp3"))) == 2
+    sync.add_sync(dev, [a], playlist_name="Evening")   # re-run with fewer
+    assert len(list(f90.glob("*.mp3"))) == 1            # old files pruned
+
+
+def test_add_sync_skips_when_device_full(tmp_path, monkeypatch, capsys):
+    dev = _nano_with_library(tmp_path)
+    src = tmp_path / "src"; src.mkdir()
+    a = src / "01 A.mp3"; _make_mp3(a)
+
+    class FakeUsage:
+        free = sync.CAPACITY_MARGIN          # free - margin == 0 -> no room
+
+    monkeypatch.setattr(sync.shutil, "disk_usage", lambda p: FakeUsage)
+    n = sync.add_sync(dev, [a], playlist_name="Evening")
+    assert n == 0
+    assert "Skipped" in capsys.readouterr().out
+    # existing library still intact
+    db = itunesdb_reader.parse(dev.db_path.read_bytes())
+    assert any(t.track_id == 1 for t in db.tracks)
+
+
+def test_add_sync_second_playlist_keeps_first_files(tmp_path):
+    dev = _nano_with_library(tmp_path)
+    src = tmp_path / "src"; src.mkdir()
+    a = src / "01 A.mp3"; _make_mp3(a)
+    b = src / "02 B.mp3"; _make_mp3(b)
+    f90 = dev.music_dir / "F90"
+    sync.add_sync(dev, [a], playlist_name="Evening")
+    first = {p.name for p in f90.glob("*.mp3")}
+    sync.add_sync(dev, [b], playlist_name="Workout")
+    second = {p.name for p in f90.glob("*.mp3")}
+    assert first.issubset(second)                       # first playlist's file kept
+    assert len(second) == 2

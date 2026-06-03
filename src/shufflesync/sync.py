@@ -116,23 +116,32 @@ def add_sync(device: IpodDevice, source_files: List[Path],
     man = manifest.load(itunes)
     man.reconcile(parsed, music)
 
-    # 4. Prune previous run of this playlist.
-    prev = man.playlists.pop(playlist_name, {"track_ids": [], "files": []})
-    prune_ids = set(prev["track_ids"])
-    for rel in prev["files"]:
+    # 4. Prune previous run of this playlist. Use .get() so a malformed/old
+    #    manifest entry can't raise after the backup (fail-safe).
+    prev = man.playlists.pop(playlist_name, {})
+    prune_ids = set(prev.get("track_ids", []))
+    for rel in prev.get("files", []):
         f = music / rel
         if f.exists():
             f.unlink()
     kept_tracks = [t for t in parsed.tracks if t.track_id not in prune_ids]
 
-    # 5. Copy new files (collision-safe) into F90.
+    # 5. Copy new files (collision-safe) into F90, honoring free space (only
+    #    this run's files count; existing content already fits).
     music.mkdir(parents=True, exist_ok=True)
     taken = _existing_names(music)
     folder = music / "F90"
     folder.mkdir(exist_ok=True)
     next_id = max([t.track_id for t in kept_tracks] + [0]) + 1
+    free = shutil.disk_usage(device.root).free - CAPACITY_MARGIN
+    used = 0
+    skipped = 0
     new_records, new_ids, new_files = [], [], []
     for i, src in enumerate(source_files):
+        size = src.stat().st_size
+        if used + size > free:
+            skipped += 1
+            continue
         name = _free_name(taken, i + 1, src.suffix.lower())
         shutil.copy2(src, folder / name)
         m = metadata.read_metadata(src)
@@ -145,6 +154,7 @@ def add_sync(device: IpodDevice, source_files: List[Path],
             track_number=m.track_number, year=m.year)))
         new_ids.append(tid)
         new_files.append(f"F90/{name}")
+        used += size
 
     # 6. Reassemble: type 1 (kept verbatim + new) + type 2 (rebuilt master +
     #    user/other-managed non-master verbatim + new managed playlist).
@@ -167,4 +177,7 @@ def add_sync(device: IpodDevice, source_files: List[Path],
     # 7. Update + save manifest.
     man.playlists[playlist_name] = {"track_ids": new_ids, "files": new_files}
     man.save(itunes)
+
+    if skipped:
+        print(f"Skipped {skipped} track(s): not enough space on device.")
     return len(new_ids)
