@@ -66,6 +66,7 @@ def _read_m3u(m3u: Path, dest: Path) -> List[Path]:
     if not m3u.exists():
         return []
     files = []
+    dest_resolved = dest.resolve()
     for line in m3u.read_text().splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
@@ -73,6 +74,9 @@ def _read_m3u(m3u: Path, dest: Path) -> List[Path]:
         path = Path(line)
         if not path.is_absolute():
             path = dest / path
+        path = path.resolve()
+        if not path.is_relative_to(dest_resolved):
+            continue
         if path.suffix.lower() == ".mp3" and path.exists():
             files.append(path)
     return files
@@ -119,7 +123,8 @@ def download_playlist(
     subprocess.run(cmd, cwd=dest, check=True)
 
     files = _read_m3u(m3u, dest)
-    _prune_orphans(dest, files)
+    if files:
+        _prune_orphans(dest, files)
     return DownloadResult(files, playlist_name)
 
 

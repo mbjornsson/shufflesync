@@ -18,7 +18,7 @@ def string_mhod(mhod_type: int, text: str) -> bytes:
     encoded = text.encode("utf-16-le")
     body = bytearray(40)
     body[0:4] = b"mhod"
-    body[4:8] = _u32(24)                  # header_len
+    body[4:8] = _u32(24)                  # header_len: matches real-device format (validated by golden fixture)
     body[8:12] = _u32(40 + len(encoded))  # total_len
     body[12:16] = _u32(mhod_type)
     body[0x18:0x1c] = _u32(1)             # position
@@ -70,7 +70,7 @@ def track_mhit(entry: "TrackEntry") -> bytes:
     h[0x2c:0x30] = _u32(entry.track_number)
     h[0x34:0x38] = _u32(entry.year)
     h[0x38:0x3a] = struct.pack("<H", entry.bitrate)
-    h[MHIT_OFFSETS["sample_rate"]:MHIT_OFFSETS["sample_rate"] + 4] = _u32(entry.sample_rate << 16)
+    h[MHIT_OFFSETS["sample_rate"]:MHIT_OFFSETS["sample_rate"] + 4] = _u32(min(entry.sample_rate, 0xFFFF) << 16)
     return bytes(h) + mhods
 
 

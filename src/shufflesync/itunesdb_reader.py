@@ -49,6 +49,8 @@ def parse(data: bytes) -> ParsedDB:
         if data[o:o + 4] != b"mhsd":
             break
         ds_total = _u32(data, o + 8)
+        if ds_total == 0:
+            break
         ds_type = _u32(data, o + 12)
         inner = o + _u32(data, o + 4)
         if ds_type == 1 and data[inner:inner + 4] == b"mhlt":
@@ -58,6 +60,8 @@ def parse(data: bytes) -> ParsedDB:
                 if data[t:t + 4] != b"mhit":
                     break
                 total = _u32(data, t + 8)
+                if total == 0:
+                    break
                 tracks.append(RawTrack(_u32(data, t + 0x10), data[t:t + total]))
                 t += total
         elif ds_type == 2 and data[inner:inner + 4] == b"mhlp":
@@ -67,6 +71,8 @@ def parse(data: bytes) -> ParsedDB:
                 if data[p:p + 4] != b"mhyp":
                     break
                 ptot = _u32(data, p + 8)
+                if ptot == 0:
+                    break
                 nmhod = _u32(data, p + 12)
                 nitems = _u32(data, p + 0x10)
                 is_master = _u32(data, p + 0x14) == 1
@@ -75,16 +81,22 @@ def parse(data: bytes) -> ParsedDB:
                 for _ in range(nmhod):
                     if data[q:q + 4] != b"mhod":
                         break
+                    mhod_total = _u32(data, q + 8)
+                    if mhod_total == 0:
+                        break
                     mtype, text = _string_mhod_text(data, q)
                     if mtype == 1 and text is not None:
                         name = text
-                    q += _u32(data, q + 8)
+                    q += mhod_total
                 track_ids = []
                 for _ in range(nitems):
                     if data[q:q + 4] != b"mhip":
                         break
+                    mhip_total = _u32(data, q + 8)
+                    if mhip_total == 0:
+                        break
                     track_ids.append(_u32(data, q + 0x18))
-                    q += _u32(data, q + 8)
+                    q += mhip_total
                 playlists.append(RawPlaylist(name, is_master, track_ids, data[p:p + ptot]))
                 p += ptot
         o += ds_total

@@ -72,8 +72,8 @@ def mirror_sync(
     for src in source_files:
         size = src.stat().st_size
         if used + size > free:
-            skipped += 1
-            continue
+            skipped = len(source_files) - index
+            break
         folder = f"F{index // FILES_PER_FOLDER:02d}"
         name = f"T{index + 1:04d}{src.suffix.lower()}"
         (music / folder).mkdir(exist_ok=True)
@@ -108,7 +108,8 @@ def mirror_sync(
 
 
 def _existing_names(music: Path) -> set:
-    return {p.name for p in music.rglob("*") if p.is_file()}
+    f90 = music / "F90"
+    return {p.name for p in f90.iterdir() if p.is_file()} if f90.exists() else set()
 
 
 def _free_name(taken: set, index: int, suffix: str) -> str:
@@ -166,15 +167,17 @@ def add_sync(device: IpodDevice, source_files: List[Path],
     used = 0
     skipped = 0
     new_records, new_ids, new_files = [], [], []
-    for i, src in enumerate(source_files):
+    next_tid = next_id
+    for src in source_files:
         size = src.stat().st_size
         if used + size > free:
-            skipped += 1
-            continue
-        name = _free_name(taken, i + 1, src.suffix.lower())
+            skipped = len(source_files) - len(new_ids)
+            break
+        m = metadata.read_metadata(src)  # read before copy so a bad file leaves no orphan
+        name = _free_name(taken, len(new_ids) + 1, src.suffix.lower())
         shutil.copy2(src, folder / name)
-        m = metadata.read_metadata(src)
-        tid = next_id + i
+        tid = next_tid
+        next_tid += 1
         loc = f":iPod_Control:Music:F90:{name}"
         new_records.append(itunesdb.track_mhit(itunesdb.TrackEntry(
             track_id=tid, title=m.title, artist=m.artist, album=m.album,
